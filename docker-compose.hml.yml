@@ -3,10 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cursos_ia_mvp_hml
+    container_name: cursos_ia_mvp_next_hml
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8891:80"
+      - "127.0.0.1:8892:80"
     environment:
       APP_ENV: homologation
       DB_HOST: db
@@ -18,12 +18,12 @@ services:
       db:
         condition: service_healthy
     networks:
-      - cursos_ia_hml
+      - cursos_ia_next_hml
       - vitrine_net
 
   db:
     image: mariadb:11.4
-    container_name: cursos_ia_mvp_db_hml
+    container_name: cursos_ia_mvp_next_db_hml
     restart: unless-stopped
     environment:
       MARIADB_DATABASE: cursos_ia_mvp
@@ -38,10 +38,10 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - cursos_ia_hml
+      - cursos_ia_next_hml
 
 networks:
-  cursos_ia_hml:
+  cursos_ia_next_hml:
     driver: bridge
   vitrine_net:
     external: true
