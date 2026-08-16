@@ -2,6 +2,7 @@
 declare(strict_types=1);
 session_start();
 require_once __DIR__ . '/academic_model.php';
+require_once __DIR__ . '/academic_eligibility.php';
 
 function avDb(): PDO
 {
@@ -51,16 +52,24 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(!$stmt->fetchColumn()) throw new RuntimeException('A matrícula não pertence a este curso.');
             $stmt=$pdo->prepare("INSERT INTO assessment_results(assessment_id,enrollment_id,score,status,evaluated_at,notes) VALUES(?,?,?,'avaliado',NOW(),?) ON DUPLICATE KEY UPDATE score=VALUES(score),status='avaliado',evaluated_at=NOW(),notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP");
             $stmt->execute([$assessmentId,$enrollmentId,$score,trim((string)($_POST['notes']??''))?:null]);
-            $_SESSION['assessment_flash']=['message'=>'Resultado registrado.','type'=>'ok'];
+            $state=academicEligibilityState($pdo,$enrollmentId);
+            $message='Resultado registrado.';
+            if($state['eligible']){
+                $message.=' Matrícula elegível para conclusão acadêmica.';
+            } else {
+                $message.=' Pendências restantes: '.implode(' ', $state['pending']);
+            }
+            $_SESSION['assessment_flash']=['message'=>$message,'type'=>'ok'];
         }
         avgo($courseId);
     }catch(Throwable $e){$_SESSION['assessment_flash']=['message'=>$e->getMessage(),'type'=>'error'];avgo($courseId);}
 }
 
-$assessments=[];$enrollments=[];$results=[];
+$assessments=[];$enrollments=[];$results=[];$eligibility=[];
 if($courseId>0){
     $stmt=$pdo->prepare('SELECT * FROM assessments WHERE course_id=? AND active=1 ORDER BY id');$stmt->execute([$courseId]);$assessments=$stmt->fetchAll();
     $stmt=$pdo->prepare("SELECT e.id,e.status,s.name student_name,ch.name cohort_name FROM enrollments e INNER JOIN students s ON s.id=e.student_id LEFT JOIN cohorts ch ON ch.id=e.cohort_id WHERE e.course_id=? ORDER BY s.name");$stmt->execute([$courseId]);$enrollments=$stmt->fetchAll();
+    foreach($enrollments as $e){$eligibility[(int)$e['id']]=academicEligibilityState($pdo,(int)$e['id']);}
     $stmt=$pdo->prepare("SELECT ar.*,a.title assessment_title,a.max_score,a.weight,s.name student_name FROM assessment_results ar INNER JOIN assessments a ON a.id=ar.assessment_id INNER JOIN enrollments e ON e.id=ar.enrollment_id INNER JOIN students s ON s.id=e.student_id WHERE a.course_id=? ORDER BY ar.updated_at DESC");$stmt->execute([$courseId]);$results=$stmt->fetchAll();
 }
 ?>
@@ -73,6 +82,7 @@ if($courseId>0){
 <?php if($courseId>0):?>
 <div class="grid grid-2" style="margin-bottom:18px"><section class="card form-card"><div class="section-title"><h2>Nova avaliação</h2><span class="pill">Curso <?=$courseId?></span></div><form method="post"><input type="hidden" name="action" value="create_assessment"><input type="hidden" name="course_id" value="<?=$courseId?>"><div class="form-group"><label class="form-label">Título</label><input name="title" required placeholder="Ex.: Avaliação final"></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo</label><select name="assessment_type"><option value="avaliacao_final">Avaliação final</option><option value="atividade">Atividade</option><option value="prova">Prova</option><option value="trabalho">Trabalho</option></select></div><div class="form-group"><label class="form-label">Nota máxima</label><input type="number" name="max_score" min="0.01" step="0.01" value="100"></div></div><div class="form-group"><label class="form-label">Peso</label><input type="number" name="weight" min="0.01" step="0.01" value="1"></div><label><input type="checkbox" name="required" value="1" checked> Avaliação obrigatória</label><button class="btn" type="submit">Cadastrar avaliação</button></form></section>
 <section class="card form-card"><div class="section-title"><h2>Lançar resultado</h2><span class="pill <?=count($assessments)?'ok':'warn'?>"><?=count($assessments)?> avaliação(ões)</span></div><?php if($assessments && $enrollments):?><form method="post"><input type="hidden" name="action" value="save_result"><input type="hidden" name="course_id" value="<?=$courseId?>"><div class="form-group"><label class="form-label">Avaliação</label><select name="assessment_id" required><?php foreach($assessments as $a):?><option value="<?=$a['id']?>"><?=avh($a['title'])?> · máx. <?=number_format((float)$a['max_score'],2,',','.')?> · peso <?=number_format((float)$a['weight'],2,',','.')?></option><?php endforeach;?></select></div><div class="form-group"><label class="form-label">Aluno / matrícula</label><select name="enrollment_id" required><?php foreach($enrollments as $e):?><option value="<?=$e['id']?>"><?=avh($e['student_name'])?> · matrícula <?=$e['id']?><?= $e['cohort_name']?' · '.avh($e['cohort_name']):'' ?></option><?php endforeach;?></select></div><div class="form-group"><label class="form-label">Nota obtida</label><input type="number" name="score" min="0" step="0.01" required></div><div class="form-group"><label class="form-label">Observações</label><textarea name="notes"></textarea></div><button class="btn">Salvar resultado</button></form><?php else:?><div class="empty">Cadastre uma avaliação e tenha ao menos uma matrícula neste curso.</div><?php endif;?></section></div>
+<section class="card" style="margin-bottom:18px"><div class="section-title"><h2>Elegibilidade acadêmica</h2><span class="pill"><?=count($enrollments)?> matrícula(s)</span></div><div class="table-wrap"><table class="table"><thead><tr><th>Aluno</th><th>Nota final</th><th>Situação</th><th>Pendências</th></tr></thead><tbody><?php foreach($enrollments as $e):$state=$eligibility[(int)$e['id']];?><tr><td><strong><?=avh($e['student_name'])?></strong><br><span class="muted">Matrícula <?=$e['id']?></span></td><td><?=$state['final_grade']===null?'—':number_format((float)$state['final_grade'],2,',','.')?></td><td><span class="pill <?=$state['eligible']?'ok':'warn'?>"><?=$state['eligible']?'Elegível':'Pendente'?></span></td><td><?= $state['eligible']?'Critérios cumpridos.':avh(implode(' ', $state['pending'])) ?></td></tr><?php endforeach;if(!$enrollments):?><tr><td colspan="4" class="empty">Nenhuma matrícula neste curso.</td></tr><?php endif;?></tbody></table></div></section>
 <section class="card" style="margin-bottom:18px"><div class="section-title"><h2>Avaliações do curso</h2><span class="pill"><?=count($assessments)?></span></div><div class="table-wrap"><table class="table"><thead><tr><th>Avaliação</th><th>Tipo</th><th>Máxima</th><th>Peso</th><th>Obrigatória</th></tr></thead><tbody><?php foreach($assessments as $a):?><tr><td><strong><?=avh($a['title'])?></strong></td><td><?=avh($a['assessment_type'])?></td><td><?=number_format((float)$a['max_score'],2,',','.')?></td><td><?=number_format((float)$a['weight'],2,',','.')?></td><td><?=$a['required']?'Sim':'Não'?></td></tr><?php endforeach;if(!$assessments):?><tr><td colspan="5" class="empty">Nenhuma avaliação cadastrada.</td></tr><?php endif;?></tbody></table></div></section>
 <section class="card"><div class="section-title"><h2>Resultados lançados</h2><span class="pill"><?=count($results)?></span></div><div class="table-wrap"><table class="table"><thead><tr><th>Aluno</th><th>Avaliação</th><th>Nota</th><th>Normalizada</th><th>Data</th></tr></thead><tbody><?php foreach($results as $r):$normalized=(float)$r['max_score']>0?round(((float)$r['score']/(float)$r['max_score'])*100,2):0;?><tr><td><?=avh($r['student_name'])?></td><td><?=avh($r['assessment_title'])?></td><td><?=number_format((float)$r['score'],2,',','.')?> / <?=number_format((float)$r['max_score'],2,',','.')?></td><td><?=number_format($normalized,2,',','.')?>%</td><td><?=avh($r['evaluated_at'])?></td></tr><?php endforeach;if(!$results):?><tr><td colspan="5" class="empty">Nenhum resultado lançado.</td></tr><?php endif;?></tbody></table></div></section>
 <?php endif;?>
