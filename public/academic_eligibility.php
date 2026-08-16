@@ -99,3 +99,24 @@ function academicSyncCompletion(PDO $pdo, int $enrollmentId): array
     }
     return $state;
 }
+
+function academicIssueCertificate(PDO $pdo, int $enrollmentId, string $type='certificado'): array
+{
+    if(!in_array($type,['certificado','diploma'],true)) throw new RuntimeException('Tipo de certificado inválido.');
+
+    $state=academicEligibilityState($pdo,$enrollmentId);
+    if(!$state['eligible']) throw new RuntimeException('Existem pendências acadêmicas: '.implode(' ',$state['pending']));
+    if($state['status']!=='concluido') $state=academicSyncCompletion($pdo,$enrollmentId);
+    if($state['status']!=='concluido') throw new RuntimeException('A matrícula ainda não está concluída.');
+
+    $code='CURSO-'.date('Ymd').'-'.str_pad((string)$enrollmentId,6,'0',STR_PAD_LEFT).'-'.strtoupper(substr(hash('sha256',$enrollmentId.'|'.microtime(true)),0,8));
+    $hash=hash('sha256',$code.'|'.$enrollmentId);
+    $stmt=$pdo->prepare("INSERT INTO certificates(enrollment_id,certificate_type,certificate_code,status,issued_at,validation_hash) VALUES(?,?,?,?,NOW(),?) ON DUPLICATE KEY UPDATE certificate_type=VALUES(certificate_type),certificate_code=VALUES(certificate_code),status='emitido',issued_at=NOW(),validation_hash=VALUES(validation_hash)");
+    $stmt->execute([$enrollmentId,$type,$code,'emitido',$hash]);
+
+    $stmt=$pdo->prepare('SELECT * FROM certificates WHERE enrollment_id=? LIMIT 1');
+    $stmt->execute([$enrollmentId]);
+    $certificate=$stmt->fetch(PDO::FETCH_ASSOC);
+    if(!$certificate) throw new RuntimeException('Falha ao carregar certificado emitido.');
+    return $certificate;
+}
