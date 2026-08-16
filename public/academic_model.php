@@ -165,13 +165,17 @@ function academicEnrollmentMetrics(PDO $pdo, int $enrollmentId): array
 
     $stmt = $pdo->prepare("SELECT
         COUNT(a.id) AS attendance_records,
-        SUM(CASE WHEN a.status='presente' THEN 1 ELSE 0 END) AS present_count,
-        COALESCE(SUM(a.minutes_attended),0) AS attended_minutes,
-        COALESCE(SUM(s.planned_minutes),0) AS planned_minutes
+        COALESCE(SUM(CASE WHEN a.status='presente' THEN 1 ELSE 0 END),0) AS present_count,
+        COALESCE(SUM(CASE WHEN a.status='presente' THEN a.minutes_attended ELSE 0 END),0) AS attended_minutes,
+        COALESCE((
+            SELECT SUM(s2.planned_minutes)
+            FROM enrollments e2
+            INNER JOIN attendance_sessions s2 ON s2.cohort_id=e2.cohort_id
+            WHERE e2.id=?
+        ),0) AS planned_minutes
         FROM attendance a
-        INNER JOIN attendance_sessions s ON s.id=a.session_id
         WHERE a.enrollment_id=?");
-    $stmt->execute([$enrollmentId]);
+    $stmt->execute([$enrollmentId, $enrollmentId]);
     $presence = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
     return array_merge($online, $presence);
