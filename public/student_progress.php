@@ -18,17 +18,21 @@ function sflash(string $message,string $type='ok'): void { $_SESSION['student_fl
 
 function academicCompletionState(PDO $pdo, int $enrollmentId): array
 {
-    $stmt=$pdo->prepare('SELECT status,cohort_id FROM enrollments WHERE id=?');
+    $stmt=$pdo->prepare('SELECT status,cohort_id,course_id FROM enrollments WHERE id=?');
     $stmt->execute([$enrollmentId]);
     $enrollment=$stmt->fetch();
     if(!$enrollment) throw new RuntimeException('Matrícula não encontrada.');
 
+    $rules=academicCourseRules($pdo,(int)$enrollment['course_id']);
     $metrics=academicEnrollmentMetrics($pdo,$enrollmentId);
     $totalLessons=(int)($metrics['total_lessons']??0);
     $completedLessons=(int)($metrics['completed_lessons']??0);
+    $plannedMinutes=(int)($metrics['planned_minutes']??0);
+    $attendedMinutes=(int)($metrics['attended_minutes']??0);
+    $attendancePercent=$plannedMinutes>0?min(100,round(($attendedMinutes/$plannedMinutes)*100,2)):0.0;
     $pending=[];
 
-    if($totalLessons>0 && $completedLessons<$totalLessons){
+    if((int)($rules['require_all_lessons']??1)===1 && $totalLessons>0 && $completedLessons<$totalLessons){
         $pending[]='Concluir '.($totalLessons-$completedLessons).' aula(s) online.';
     }
 
@@ -44,8 +48,16 @@ function academicCompletionState(PDO $pdo, int $enrollmentId): array
         $stmt->execute([$enrollmentId,$cohortId]);
         $registeredSessions=(int)$stmt->fetchColumn();
 
-        if($registeredSessions<$totalSessions){
+        if((int)($rules['require_all_attendance_records']??1)===1 && $registeredSessions<$totalSessions){
             $pending[]='Lançar presença em '.($totalSessions-$registeredSessions).' encontro(s) presencial(is).';
+        }
+
+        $minimumAttendance=$rules['minimum_attendance_percent'] ?? null;
+        if($minimumAttendance!==null && $minimumAttendance!=='' && $plannedMinutes>0){
+            $minimumAttendance=(float)$minimumAttendance;
+            if($attendancePercent<$minimumAttendance){
+                $pending[]='Atingir frequência mínima de '.rtrim(rtrim(number_format($minimumAttendance,2,'.',''),'0'),'.').'% (atual: '.rtrim(rtrim(number_format($attendancePercent,2,'.',''),'0'),'.').'%).';
+            }
         }
     }
 
@@ -57,8 +69,11 @@ function academicCompletionState(PDO $pdo, int $enrollmentId): array
         'completed_lessons'=>$completedLessons,
         'total_sessions'=>$totalSessions,
         'registered_sessions'=>$registeredSessions,
+        'attendance_percent'=>$attendancePercent,
         'status'=>(string)$enrollment['status'],
+        'course_id'=>(int)$enrollment['course_id'],
         'cohort_id'=>$cohortId,
+        'rules'=>$rules,
     ];
 }
 
@@ -138,8 +153,10 @@ $sessions=[]; if($enrollment['cohort_id']){$stmt=$pdo->prepare("SELECT s.*,a.sta
 $stmt=$pdo->prepare('SELECT * FROM certificates WHERE enrollment_id=?');$stmt->execute([$enrollmentId]);$certificate=$stmt->fetch();
 $metrics=academicEnrollmentMetrics($pdo,$enrollmentId);
 $total=(int)($metrics['total_lessons']??0);$done=(int)($metrics['completed_lessons']??0);$onlinePct=$total?round(($done/$total)*100):0;$watchedHours=round(((int)($metrics['watched_seconds']??0))/3600,1);
-$planned=(int)($metrics['planned_minutes']??0);$attended=(int)($metrics['attended_minutes']??0);$attendancePct=$planned?round(($attended/$planned)*100):0;
+$planned=(int)($metrics['planned_minutes']??0);$attended=(int)($metrics['attended_minutes']??0);$attendancePct=$planned?min(100,round(($attended/$planned)*100)):0;
 $completionState=academicCompletionState($pdo,$enrollmentId);
+$rules=$completionState['rules'];
+$minimumAttendance=$rules['minimum_attendance_percent']??null;
 $flash=$_SESSION['student_flash']??null;unset($_SESSION['student_flash']);
 ?>
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=sh($enrollment['student_name'])?> — Progresso</title>
@@ -148,9 +165,9 @@ $flash=$_SESSION['student_flash']??null;unset($_SESSION['student_flash']);
 <?php if($flash):?><div class="flash <?=sh($flash['type'])?>"><?=sh($flash['message'])?></div><?php endif;?>
 <div class="card"><h1><?=sh($enrollment['student_name'])?></h1><p><strong>Curso:</strong> <?=sh($enrollment['course_title'])?><?php if($enrollment['cohort_name']):?> · <strong>Turma:</strong> <?=sh($enrollment['cohort_name'])?><?php endif;?></p><p class="muted"><?=sh($enrollment['organization_name']?:'Matrícula individual')?> · <?=sh($enrollment['modality']?:'online')?> · <?=sh($enrollment['email'])?></p></div>
 <div class="metrics"><div class="metric"><b><?=$onlinePct?>%</b><span>Conclusão online</span></div><div class="metric"><b><?=$done?>/<?=$total?></b><span>Aulas concluídas</span></div><div class="metric"><b><?=$watchedHours?>h</b><span>Tempo assistido</span></div><div class="metric"><b><?=$attendancePct?>%</b><span>Carga presencial registrada</span></div><div class="metric"><b><?=sh($certificate['status']??'—')?></b><span>Certificado/diploma</span></div></div>
-<div class="card <?=$completionState['eligible']?'ready':'pending'?>"><h2><?=$completionState['eligible']?'Pronto para conclusão':'Pendências para conclusão'?></h2><?php if($completionState['eligible']):?><p>Os critérios acadêmicos atualmente configurados foram cumpridos. A matrícula pode ser concluída automaticamente.</p><?php else:?><ul><?php foreach($completionState['pending'] as $item):?><li><?=sh($item)?></li><?php endforeach;?></ul><p class="muted">Frequência mínima, nota e outros critérios ainda não foram parametrizados por curso; por isso não entram neste cálculo.</p><?php endif;?></div>
+<div class="card <?=$completionState['eligible']?'ready':'pending'?>"><h2><?=$completionState['eligible']?'Pronto para conclusão':'Pendências para conclusão'?></h2><?php if($completionState['eligible']):?><p>Os critérios acadêmicos configurados para este curso foram cumpridos. A matrícula pode ser concluída automaticamente.</p><?php else:?><ul><?php foreach($completionState['pending'] as $item):?><li><?=sh($item)?></li><?php endforeach;?></ul><?php endif;?><p class="muted">Regra do curso: aulas <?=((int)($rules['require_all_lessons']??1)===1)?'obrigatórias':'não obrigatórias para conclusão'?> · lançamentos presenciais <?=((int)($rules['require_all_attendance_records']??1)===1)?'obrigatórios':'não obrigatórios'?> · frequência mínima <?=($minimumAttendance===null||$minimumAttendance==='')?'não definida':sh(rtrim(rtrim(number_format((float)$minimumAttendance,2,'.',''),'0'),'.').'%')?>. Nota mínima permanece reservada para o módulo de avaliações.</p></div>
 <div class="card"><h2>Situação geral</h2><form method="post"><input type="hidden" name="action" value="update_enrollment"><input type="hidden" name="enrollment_id" value="<?=$enrollmentId?>"><label>Status acadêmico</label> <select name="status"><option value="matriculado" <?=$enrollment['status']==='matriculado'?'selected':''?>>Matriculado</option><option value="em_andamento" <?=$enrollment['status']==='em_andamento'?'selected':''?>>Em andamento</option><option value="concluido" <?=$enrollment['status']==='concluido'?'selected':''?>>Concluído</option><option value="trancado" <?=$enrollment['status']==='trancado'?'selected':''?>>Trancado</option><option value="cancelado" <?=$enrollment['status']==='cancelado'?'selected':''?>>Cancelado</option></select> <label>Pagamento</label> <select name="payment_status"><option value="pendente" <?=$enrollment['payment_status']==='pendente'?'selected':''?>>Pendente</option><option value="pago" <?=$enrollment['payment_status']==='pago'?'selected':''?>>Pago</option><option value="isento" <?=$enrollment['payment_status']==='isento'?'selected':''?>>Isento</option><option value="contrato_institucional" <?=$enrollment['payment_status']==='contrato_institucional'?'selected':''?>>Contrato institucional</option><option value="atrasado" <?=$enrollment['payment_status']==='atrasado'?'selected':''?>>Atrasado</option></select> <button class="btn">Salvar</button></form></div>
 <div class="card"><h2>Aulas online</h2><p class="muted">Por enquanto o apontamento pode ser manual em HML. Quando o player de vídeo entrar, estes campos serão atualizados automaticamente por eventos de reprodução.</p><table><thead><tr><th>Aula</th><th>Status</th><th>Assistido</th><th>Total</th><th>%</th><th>Atualizar</th></tr></thead><tbody><?php foreach($lessons as $l):?><tr><td><strong>M<?=$l['module_position']?> · A<?=$l['lesson_position']?></strong><br><?=sh($l['lesson_title'])?></td><td><span class="pill <?=($l['progress_status']??'')==='concluida'?'ok':''?>"><?=sh($l['progress_status']??'não iniciada')?></span></td><td><?=round(((int)($l['watched_seconds']??0))/60)?> min</td><td><?=round(((int)($l['total_seconds']??0))/60)?> min</td><td><?=round((float)($l['percent_complete']??0))?>%</td><td><form method="post"><input type="hidden" name="action" value="update_progress"><input type="hidden" name="enrollment_id" value="<?=$enrollmentId?>"><input type="hidden" name="lesson_id" value="<?=$l['lesson_id']?>"><input name="watched_minutes" type="number" min="0" value="<?=round(((int)($l['watched_seconds']??0))/60)?>" placeholder="assistidos"><input name="total_minutes" type="number" min="0" value="<?=round(((int)($l['total_seconds']??0))/60)?>" placeholder="duração"><button class="btn">Salvar</button></form></td></tr><?php endforeach;?></tbody></table></div>
 <?php if($enrollment['cohort_id']):?><div class="card"><h2>Aulas / encontros presenciais</h2><table><thead><tr><th>Encontro</th><th>Data/local</th><th>Registro atual</th><th>Presença</th></tr></thead><tbody><?php foreach($sessions as $s):?><tr><td><strong><?=sh($s['title'])?></strong><br><span class="muted"><?=$s['planned_minutes']?> min previstos</span></td><td><?=sh($s['session_date'])?><br><span class="muted"><?=sh($s['location'])?></span></td><td><span class="pill <?=($s['attendance_status']??'')==='presente'?'ok':''?>"><?=sh($s['attendance_status']??'não lançada')?></span><br><span class="muted"><?=(int)($s['minutes_attended']??0)?> min</span></td><td><form method="post"><input type="hidden" name="action" value="mark_attendance"><input type="hidden" name="enrollment_id" value="<?=$enrollmentId?>"><input type="hidden" name="session_id" value="<?=$s['id']?>"><select name="attendance_status"><option value="presente">Presente</option><option value="ausente">Ausente</option><option value="justificada">Falta justificada</option></select><input name="minutes_attended" type="number" min="0" value="<?=(int)($s['minutes_attended']??0)?>" placeholder="minutos"><input name="notes" value="<?=sh($s['attendance_notes']??'')?>" placeholder="observação"><button class="btn">Registrar</button></form></td></tr><?php endforeach;if(!$sessions):?><tr><td colspan="4" class="muted">Nenhum encontro presencial cadastrado para esta turma.</td></tr><?php endif;?></tbody></table></div><?php endif;?>
-<div class="card"><h2>Conclusão e documento</h2><p>Online: <strong><?=$onlinePct?>%</strong> · Presencial registrado: <strong><?=$attendancePct?>%</strong> · Situação acadêmica: <strong><?=sh($enrollment['status'])?></strong>.</p><p class="muted">A emissão é controlada pelo estado acadêmico. Frequência mínima, avaliação, carga horária e demais requisitos adicionais serão configurados por curso/turma antes de produção.</p><?php if($certificate):?><p><span class="pill ok"><?=sh($certificate['certificate_type'])?> emitido</span> Código: <strong><?=sh($certificate['certificate_code'])?></strong></p><?php else:?><form method="post"><input type="hidden" name="action" value="issue_certificate"><input type="hidden" name="enrollment_id" value="<?=$enrollmentId?>"><select name="certificate_type"><option value="certificado">Certificado</option><option value="diploma">Diploma</option></select> <button class="btn">Emitir registro acadêmico</button></form><?php endif;?></div>
+<div class="card"><h2>Conclusão e documento</h2><p>Online: <strong><?=$onlinePct?>%</strong> · Presencial registrado: <strong><?=$attendancePct?>%</strong> · Situação acadêmica: <strong><?=sh($enrollment['status'])?></strong>.</p><p class="muted">A emissão é controlada pelo estado acadêmico e pelos critérios configurados para o curso. Avaliação/nota será incorporada quando o módulo de avaliações estiver operacional.</p><?php if($certificate):?><p><span class="pill ok"><?=sh($certificate['certificate_type'])?> emitido</span> Código: <strong><?=sh($certificate['certificate_code'])?></strong></p><?php else:?><form method="post"><input type="hidden" name="action" value="issue_certificate"><input type="hidden" name="enrollment_id" value="<?=$enrollmentId?>"><select name="certificate_type"><option value="certificado">Certificado</option><option value="diploma">Diploma</option></select> <button class="btn">Emitir registro acadêmico</button></form><?php endif;?></div>
 </div></body></html>
