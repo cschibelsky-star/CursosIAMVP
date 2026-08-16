@@ -16,13 +16,47 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]
 );
 
+$pdo->exec("CREATE TABLE IF NOT EXISTS courses (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(180) NOT NULL,
+    audience VARCHAR(180) NOT NULL,
+    objective TEXT NOT NULL,
+    status VARCHAR(40) NOT NULL DEFAULT 'rascunho',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$pdo->exec("CREATE TABLE IF NOT EXISTS modules (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    course_id INT UNSIGNED NOT NULL,
+    position INT UNSIGNED NOT NULL,
+    title VARCHAR(180) NOT NULL,
+    objective TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_module_position(course_id,position),
+    CONSTRAINT fk_modules_course FOREIGN KEY(course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$pdo->exec("CREATE TABLE IF NOT EXISTS lessons (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    module_id INT UNSIGNED NOT NULL,
+    position INT UNSIGNED NOT NULL,
+    title VARCHAR(180) NOT NULL,
+    objective TEXT NOT NULL,
+    script LONGTEXT NOT NULL,
+    review_status VARCHAR(40) NOT NULL DEFAULT 'pendente',
+    reviewer_notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_lesson_position(module_id,position),
+    CONSTRAINT fk_lessons_module FOREIGN KEY(module_id) REFERENCES modules(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 ensureAcademicModel($pdo);
 $tag='HML_SMOKE_'.date('Ymd_His').'_'.bin2hex(random_bytes(3));
 $courseId=0;
 
 try{
     $pdo->beginTransaction();
-    $pdo->prepare("INSERT INTO courses(title,status) VALUES(?,'draft')")->execute([$tag]);
+    $pdo->prepare("INSERT INTO courses(title,audience,objective,status) VALUES(?,?,?,'rascunho')")->execute([$tag,'Teste automatizado de homologacao','Validar criterios academicos']);
     $courseId=(int)$pdo->lastInsertId();
 
     $pdo->prepare("INSERT INTO students(name,email,active) VALUES(?,?,1)")->execute([$tag.' Aluno',strtolower($tag).'@teste.local']);
@@ -51,9 +85,6 @@ try{
     exit(0);
 }catch(Throwable $e){
     if($pdo->inTransaction()) $pdo->rollBack();
-    if($courseId>0){
-        try{$pdo->prepare('DELETE FROM courses WHERE id=?')->execute([$courseId]);}catch(Throwable $ignored){}
-    }
     fwrite(STDERR,'ACADEMIC_SMOKE_FAIL '.$e->getMessage()."\n");
     exit(1);
 }
