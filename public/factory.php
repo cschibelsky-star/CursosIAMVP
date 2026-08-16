@@ -36,6 +36,7 @@ function factoryMigrate(PDO $pdo): void
     try {
         $pdo->exec("ALTER TABLE course_assets ADD COLUMN engine_mode VARCHAR(60) NOT NULL DEFAULT 'grounded_editorial_v0.4' AFTER status");
     } catch (Throwable $e) {
+        // Coluna já existe em ambientes previamente migrados.
     }
 }
 

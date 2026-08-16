@@ -2,6 +2,8 @@
 declare(strict_types=1);
 header('Content-Type: text/plain; charset=utf-8');
 require_once __DIR__ . '/cidades_inclusivas_model.php';
+require_once __DIR__ . '/academic_model.php';
+require_once __DIR__ . '/student_portal_model.php';
 
 try {
     foreach (['pdo_mysql', 'mbstring', 'zip'] as $extension) {
@@ -26,6 +28,8 @@ try {
     }
 
     ensureCidadesInclusivas($pdo);
+    ensureAcademicModel($pdo);
+    ensureStudentPortal($pdo);
     echo "OK\n";
 } catch (Throwable $e) {
     http_response_code(503);
