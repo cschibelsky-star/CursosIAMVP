@@ -48,6 +48,38 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $stmt->execute([$status,$payment,$paid,$completed,$enrollmentId]);
             sflash('Situação acadêmica atualizada.');
         } elseif($action==='issue_certificate'){
+            $stmt=$pdo->prepare('SELECT status,cohort_id FROM enrollments WHERE id=?');
+            $stmt->execute([$enrollmentId]);
+            $eligibilityEnrollment=$stmt->fetch();
+            if(!$eligibilityEnrollment) throw new RuntimeException('Matrícula não encontrada.');
+
+            if(($eligibilityEnrollment['status']??'')!=='concluido'){
+                throw new RuntimeException('Conclua academicamente a matrícula antes de emitir certificado ou diploma.');
+            }
+
+            $eligibilityMetrics=academicEnrollmentMetrics($pdo,$enrollmentId);
+            $totalLessons=(int)($eligibilityMetrics['total_lessons']??0);
+            $completedLessons=(int)($eligibilityMetrics['completed_lessons']??0);
+
+            if($totalLessons>0 && $completedLessons<$totalLessons){
+                throw new RuntimeException('Existem aulas online ainda não concluídas.');
+            }
+
+            $cohortId=(int)($eligibilityEnrollment['cohort_id']??0);
+            if($cohortId>0){
+                $stmt=$pdo->prepare('SELECT COUNT(*) FROM attendance_sessions WHERE cohort_id=?');
+                $stmt->execute([$cohortId]);
+                $totalSessions=(int)$stmt->fetchColumn();
+
+                $stmt=$pdo->prepare('SELECT COUNT(*) FROM attendance a INNER JOIN attendance_sessions s ON s.id=a.session_id WHERE a.enrollment_id=? AND s.cohort_id=?');
+                $stmt->execute([$enrollmentId,$cohortId]);
+                $registeredSessions=(int)$stmt->fetchColumn();
+
+                if($registeredSessions<$totalSessions){
+                    throw new RuntimeException('Existem encontros presenciais sem lançamento de presença.');
+                }
+            }
+
             $type=(string)($_POST['certificate_type']??'certificado');
             if(!in_array($type,['certificado','diploma'],true))$type='certificado';
             $code='CURSO-'.date('Ymd').'-'.str_pad((string)$enrollmentId,6,'0',STR_PAD_LEFT).'-'.strtoupper(substr(hash('sha256',$enrollmentId.'|'.microtime(true)),0,8));
