@@ -19,6 +19,7 @@ services:
         condition: service_healthy
     networks:
       - cursos_ia_hml
+      - vitrine_net
 
   db:
     image: mariadb:11.4
@@ -42,3 +43,6 @@ services:
 networks:
   cursos_ia_hml:
     driver: bridge
+  vitrine_net:
+    external: true
+    name: vitrine_net
