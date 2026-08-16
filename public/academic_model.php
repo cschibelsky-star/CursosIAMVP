@@ -92,6 +92,37 @@ function ensureAcademicModel(PDO $pdo): void
         CONSTRAINT fk_course_academic_rules_course FOREIGN KEY(course_id) REFERENCES courses(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS assessments (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id INT UNSIGNED NOT NULL,
+        title VARCHAR(180) NOT NULL,
+        assessment_type VARCHAR(40) NOT NULL DEFAULT 'avaliacao_final',
+        max_score DECIMAL(6,2) NOT NULL DEFAULT 100,
+        weight DECIMAL(6,2) NOT NULL DEFAULT 1,
+        required TINYINT(1) NOT NULL DEFAULT 1,
+        active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_assessments_course(course_id),
+        CONSTRAINT fk_assessments_course FOREIGN KEY(course_id) REFERENCES courses(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS assessment_results (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        assessment_id INT UNSIGNED NOT NULL,
+        enrollment_id INT UNSIGNED NOT NULL,
+        score DECIMAL(6,2) NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'pendente',
+        evaluated_at DATETIME NULL,
+        notes TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_assessment_result(assessment_id,enrollment_id),
+        INDEX idx_assessment_results_enrollment(enrollment_id),
+        CONSTRAINT fk_assessment_results_assessment FOREIGN KEY(assessment_id) REFERENCES assessments(id) ON DELETE CASCADE,
+        CONSTRAINT fk_assessment_results_enrollment FOREIGN KEY(enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS lesson_progress (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         enrollment_id INT UNSIGNED NOT NULL,
@@ -177,6 +208,30 @@ function academicCourseRules(PDO $pdo, int $courseId): array
     ];
 }
 
+function academicEnrollmentGrade(PDO $pdo, int $enrollmentId): array
+{
+    $stmt=$pdo->prepare("SELECT
+        COUNT(a.id) AS total_assessments,
+        SUM(CASE WHEN a.required=1 THEN 1 ELSE 0 END) AS required_assessments,
+        SUM(CASE WHEN a.required=1 AND ar.score IS NOT NULL THEN 1 ELSE 0 END) AS required_graded,
+        SUM(CASE WHEN ar.score IS NOT NULL THEN (ar.score/NULLIF(a.max_score,0))*100*a.weight ELSE 0 END) AS weighted_score,
+        SUM(CASE WHEN ar.score IS NOT NULL THEN a.weight ELSE 0 END) AS graded_weight
+        FROM enrollments e
+        LEFT JOIN assessments a ON a.course_id=e.course_id AND a.active=1
+        LEFT JOIN assessment_results ar ON ar.assessment_id=a.id AND ar.enrollment_id=e.id
+        WHERE e.id=?");
+    $stmt->execute([$enrollmentId]);
+    $row=$stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $weight=(float)($row['graded_weight']??0);
+    $grade=$weight>0?round(((float)$row['weighted_score'])/$weight,2):null;
+    return [
+        'total_assessments'=>(int)($row['total_assessments']??0),
+        'required_assessments'=>(int)($row['required_assessments']??0),
+        'required_graded'=>(int)($row['required_graded']??0),
+        'final_grade'=>$grade,
+    ];
+}
+
 function academicEnrollmentMetrics(PDO $pdo, int $enrollmentId): array
 {
     $stmt = $pdo->prepare("SELECT
@@ -207,5 +262,5 @@ function academicEnrollmentMetrics(PDO $pdo, int $enrollmentId): array
     $stmt->execute([$enrollmentId, $enrollmentId]);
     $presence = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    return array_merge($online, $presence);
+    return array_merge($online, $presence, academicEnrollmentGrade($pdo,$enrollmentId));
 }
