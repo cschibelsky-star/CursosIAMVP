@@ -3,6 +3,7 @@ declare(strict_types=1);
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/academic_model.php';
+require_once __DIR__ . '/academic_eligibility.php';
 require_once __DIR__ . '/student_portal_model.php';
 
 function progressDb(): PDO
@@ -62,9 +63,20 @@ try {
     }
 
     $pdo->prepare("UPDATE enrollments SET status=CASE WHEN status='matriculado' THEN 'em_andamento' ELSE status END,started_at=COALESCE(started_at,NOW()),last_seen_at=NOW() WHERE id=?")->execute([$enrollmentId]);
+    $academicState=academicSyncCompletion($pdo,$enrollmentId);
     $pdo->commit();
 
-    echo json_encode(['ok'=>true,'status'=>$status,'watched_seconds'=>$watched,'total_seconds'=>$knownTotal,'percent_complete'=>$percent,'last_position_seconds'=>$position],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    echo json_encode([
+        'ok'=>true,
+        'status'=>$status,
+        'watched_seconds'=>$watched,
+        'total_seconds'=>$knownTotal,
+        'percent_complete'=>$percent,
+        'last_position_seconds'=>$position,
+        'academic_status'=>$academicState['status'],
+        'academic_eligible'=>$academicState['eligible'],
+        'academic_pending'=>$academicState['pending'],
+    ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 } catch(Throwable $e){
     if(isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
     http_response_code(in_array($e->getMessage(),['unauthorized'],true)?401:400);
