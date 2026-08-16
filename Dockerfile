@@ -12,6 +12,7 @@ COPY public/ /var/www/html/
 
 RUN php -l /var/www/html/index.php \
     && php -l /var/www/html/source_processor.php \
+    && php -l /var/www/html/course_engine.php \
     && php -l /var/www/html/factory.php \
     && php -l /var/www/html/diagnostic.php \
     && php -l /var/www/html/health.php \
