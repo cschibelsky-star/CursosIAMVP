@@ -1,16 +1,22 @@
-FROM php:8.3-fpm-bookworm
+FROM php:8.3-apache
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip libzip-dev libicu-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo_mysql mbstring intl zip gd opcache \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libonig-dev libzip-dev poppler-utils \
+    && docker-php-ext-install pdo pdo_mysql mbstring zip \
+    && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
 WORKDIR /var/www/html
-COPY . /var/www/html
-RUN chown -R www-data:www-data /var/www/html
 
-EXPOSE 9000
-CMD ["php-fpm"]
+COPY public/ /var/www/html/
+
+RUN php -l /var/www/html/index.php \
+    && php -l /var/www/html/source_processor.php \
+    && php -l /var/www/html/diagnostic.php \
+    && php -l /var/www/html/health.php \
+    && chown -R www-data:www-data /var/www/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD php -r '$c=@file_get_contents("http://127.0.0.1/health.php"); exit($c === "OK\n" ? 0 : 1);'
