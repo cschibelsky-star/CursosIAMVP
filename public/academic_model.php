@@ -78,6 +78,20 @@ function ensureAcademicModel(PDO $pdo): void
         CONSTRAINT fk_enrollments_cohort FOREIGN KEY(cohort_id) REFERENCES cohorts(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS course_academic_rules (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        course_id INT UNSIGNED NOT NULL,
+        minimum_attendance_percent DECIMAL(5,2) NULL,
+        minimum_grade DECIMAL(5,2) NULL,
+        require_all_lessons TINYINT(1) NOT NULL DEFAULT 1,
+        require_all_attendance_records TINYINT(1) NOT NULL DEFAULT 1,
+        active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_course_academic_rules_course(course_id),
+        CONSTRAINT fk_course_academic_rules_course FOREIGN KEY(course_id) REFERENCES courses(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS lesson_progress (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         enrollment_id INT UNSIGNED NOT NULL,
@@ -146,6 +160,21 @@ function ensureAcademicModel(PDO $pdo): void
         UNIQUE KEY uq_certificate_code(certificate_code),
         CONSTRAINT fk_certificates_enrollment FOREIGN KEY(enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
+function academicCourseRules(PDO $pdo, int $courseId): array
+{
+    $stmt=$pdo->prepare('SELECT * FROM course_academic_rules WHERE course_id=? AND active=1 LIMIT 1');
+    $stmt->execute([$courseId]);
+    $rules=$stmt->fetch(PDO::FETCH_ASSOC);
+    return $rules ?: [
+        'course_id'=>$courseId,
+        'minimum_attendance_percent'=>null,
+        'minimum_grade'=>null,
+        'require_all_lessons'=>1,
+        'require_all_attendance_records'=>1,
+        'active'=>1,
+    ];
 }
 
 function academicEnrollmentMetrics(PDO $pdo, int $enrollmentId): array
