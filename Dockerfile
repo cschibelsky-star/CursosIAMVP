@@ -19,6 +19,10 @@ RUN php -l /var/www/html/index.php \
     && php -l /var/www/html/cidades_inclusivas_model.php \
     && php -l /var/www/html/cidades_inclusivas.php \
     && php -l /var/www/html/academic_model.php \
+    && php -l /var/www/html/academic_eligibility.php \
+    && php -l /var/www/html/academic_rules.php \
+    && php -l /var/www/html/assessments.php \
+    && php -l /var/www/html/academic_completion.php \
     && php -l /var/www/html/academic.php \
     && php -l /var/www/html/student_progress.php \
     && php -l /var/www/html/student_portal_model.php \
