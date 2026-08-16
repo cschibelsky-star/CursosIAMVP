@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 header('Content-Type: text/plain; charset=utf-8');
+require_once __DIR__ . '/cidades_inclusivas_model.php';
 
 try {
     foreach (['pdo_mysql', 'mbstring', 'zip'] as $extension) {
@@ -24,6 +25,7 @@ try {
         throw new RuntimeException('db_check_failed');
     }
 
+    ensureCidadesInclusivas($pdo);
     echo "OK\n";
 } catch (Throwable $e) {
     http_response_code(503);
