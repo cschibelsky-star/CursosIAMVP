@@ -52,10 +52,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(!$stmt->fetchColumn()) throw new RuntimeException('A matrícula não pertence a este curso.');
             $stmt=$pdo->prepare("INSERT INTO assessment_results(assessment_id,enrollment_id,score,status,evaluated_at,notes) VALUES(?,?,?,'avaliado',NOW(),?) ON DUPLICATE KEY UPDATE score=VALUES(score),status='avaliado',evaluated_at=NOW(),notes=VALUES(notes),updated_at=CURRENT_TIMESTAMP");
             $stmt->execute([$assessmentId,$enrollmentId,$score,trim((string)($_POST['notes']??''))?:null]);
-            $state=academicEligibilityState($pdo,$enrollmentId);
+            $state=academicSyncCompletion($pdo,$enrollmentId);
             $message='Resultado registrado.';
             if($state['eligible']){
-                $message.=' Matrícula elegível para conclusão acadêmica.';
+                $message.=' Critérios acadêmicos cumpridos e matrícula concluída automaticamente.';
             } else {
                 $message.=' Pendências restantes: '.implode(' ', $state['pending']);
             }
