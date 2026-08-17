@@ -37,6 +37,24 @@ function portalEnrollmentByCode(PDO $pdo, string $code): ?array
     return $row ?: null;
 }
 
+function portalAuthenticateByCode(PDO $pdo, string $code): ?array
+{
+    $code=strtoupper(trim($code));
+    if($code==='') return null;
+
+    $enrollment=portalEnrollmentByCode($pdo,$code);
+    if(!$enrollment) return null;
+
+    if(session_status()!==PHP_SESSION_ACTIVE) session_start();
+    session_regenerate_id(true);
+    $_SESSION['student_enrollment_id']=(int)$enrollment['id'];
+    $_SESSION['student_id']=(int)$enrollment['student_id'];
+    $_SESSION['student_csrf']=bin2hex(random_bytes(24));
+    $pdo->prepare('UPDATE enrollments SET last_portal_login_at=NOW(),last_seen_at=NOW() WHERE id=?')->execute([(int)$enrollment['id']]);
+
+    return $enrollment;
+}
+
 function portalCourseLessons(PDO $pdo, int $enrollmentId, int $courseId): array
 {
     $stmt = $pdo->prepare("SELECT m.id AS module_id,m.position AS module_position,m.title AS module_title,l.id AS lesson_id,l.position AS lesson_position,l.title AS lesson_title,l.objective,l.video_url,l.estimated_minutes,
