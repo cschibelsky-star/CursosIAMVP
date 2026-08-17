@@ -55,13 +55,15 @@ function academicEligibilityState(PDO $pdo, int $enrollmentId): array
     $finalGrade=$metrics['final_grade']===null?null:(float)$metrics['final_grade'];
     $minimumGrade=$rules['minimum_grade']??null;
 
+    if($requiredAssessments>0 && $requiredGraded<$requiredAssessments){
+        $pending[]='Lançar resultado de '.($requiredAssessments-$requiredGraded).' avaliação(ões) obrigatória(s).';
+    }
+
     if($minimumGrade!==null && $minimumGrade!==''){
         $minimumGrade=(float)$minimumGrade;
         if($requiredAssessments<1){
             $pending[]='Cadastrar ao menos uma avaliação obrigatória para aplicar a nota mínima.';
-        } elseif($requiredGraded<$requiredAssessments){
-            $pending[]='Lançar resultado de '.($requiredAssessments-$requiredGraded).' avaliação(ões) obrigatória(s).';
-        } elseif($finalGrade===null || $finalGrade<$minimumGrade){
+        } elseif($requiredGraded===$requiredAssessments && ($finalGrade===null || $finalGrade<$minimumGrade)){
             $current=$finalGrade===null?'sem nota':academicRuleNumber($finalGrade);
             $pending[]='Atingir nota mínima de '.academicRuleNumber($minimumGrade).' (atual: '.$current.').';
         }
