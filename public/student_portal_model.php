@@ -10,16 +10,33 @@ function ensureStudentPortal(PDO $pdo): void
 
     $stmt = $pdo->query("SELECT id FROM enrollments WHERE portal_access_code IS NULL OR portal_access_code='' ORDER BY id");
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $enrollmentId) {
-        do {
-            $code = strtoupper(substr(bin2hex(random_bytes(8)), 0, 12));
-            $check = $pdo->prepare('SELECT COUNT(*) FROM enrollments WHERE portal_access_code=?');
-            $check->execute([$code]);
-        } while ((int)$check->fetchColumn() > 0);
-        $update = $pdo->prepare('UPDATE enrollments SET portal_access_code=? WHERE id=? AND (portal_access_code IS NULL OR portal_access_code=\'\')');
-        $update->execute([$code, (int)$enrollmentId]);
+        portalRotateAccessCode($pdo,(int)$enrollmentId);
     }
 
     try { $pdo->exec('ALTER TABLE enrollments ADD UNIQUE KEY uq_enrollments_portal_access_code (portal_access_code)'); } catch (Throwable $e) {}
+}
+
+function portalGenerateAccessCode(PDO $pdo): string
+{
+    do {
+        $code = strtoupper(substr(bin2hex(random_bytes(8)), 0, 12));
+        $check = $pdo->prepare('SELECT COUNT(*) FROM enrollments WHERE portal_access_code=?');
+        $check->execute([$code]);
+    } while ((int)$check->fetchColumn() > 0);
+    return $code;
+}
+
+function portalRotateAccessCode(PDO $pdo, int $enrollmentId): string
+{
+    if($enrollmentId<1) throw new InvalidArgumentException('Matrícula inválida.');
+    $check=$pdo->prepare('SELECT id FROM enrollments WHERE id=? LIMIT 1');
+    $check->execute([$enrollmentId]);
+    if(!$check->fetchColumn()) throw new RuntimeException('Matrícula não encontrada.');
+
+    $code=portalGenerateAccessCode($pdo);
+    $stmt=$pdo->prepare('UPDATE enrollments SET portal_access_code=?,last_portal_login_at=NULL WHERE id=?');
+    $stmt->execute([$code,$enrollmentId]);
+    return $code;
 }
 
 function portalEnrollmentByCode(PDO $pdo, string $code): ?array
