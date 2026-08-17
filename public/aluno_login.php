@@ -37,19 +37,14 @@ if(!empty($_SESSION['student_enrollment_id'])){
 }
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
-    $code=strtoupper(trim((string)($_POST['access_code']??'')));
-    if($code===''){
+    $code=(string)($_POST['access_code']??'');
+    if(trim($code)===''){
         $error='Informe o código de acesso da matrícula.';
     }else{
-        $enrollment=portalEnrollmentByCode($pdo,$code);
+        $enrollment=portalAuthenticateByCode($pdo,$code);
         if(!$enrollment){
             $error='Código de acesso inválido ou matrícula indisponível.';
         }else{
-            session_regenerate_id(true);
-            $_SESSION['student_enrollment_id']=(int)$enrollment['id'];
-            $_SESSION['student_id']=(int)$enrollment['student_id'];
-            $_SESSION['student_csrf']=bin2hex(random_bytes(24));
-            $pdo->prepare('UPDATE enrollments SET last_portal_login_at=NOW(),last_seen_at=NOW() WHERE id=?')->execute([(int)$enrollment['id']]);
             header('Location: aluno.php');
             exit;
         }
