@@ -64,10 +64,30 @@ try{
     $pdo->prepare("INSERT INTO enrollments(student_id,course_id,enrollment_type,status,payment_status,amount) VALUES(?,?,'individual','em_andamento','isento',0)")->execute([$studentId,$courseId]);
     $enrollmentId=(int)$pdo->lastInsertId();
 
-    $pdo->prepare("INSERT INTO course_academic_rules(course_id,minimum_attendance_percent,minimum_grade,require_all_lessons,require_all_attendance_records,active) VALUES(?,NULL,70,0,0,1)")->execute([$courseId]);
-    $pdo->prepare("INSERT INTO assessments(course_id,title,assessment_type,max_score,weight,required,active) VALUES(?,?,'avaliacao_final',100,1,1,1)")->execute([$courseId,$tag.' Avaliacao']);
+    $pdo->prepare("INSERT INTO course_academic_rules(course_id,minimum_attendance_percent,minimum_grade,require_all_lessons,require_all_attendance_records,active) VALUES(?,NULL,NULL,0,0,1)")->execute([$courseId]);
+
+    $pdo->prepare("INSERT INTO assessments(course_id,title,assessment_type,max_score,weight,required,active) VALUES(?,?,'atividade',100,1,0,1)")->execute([$courseId,$tag.' Opcional']);
+    $optionalOnly=academicEligibilityState($pdo,$enrollmentId);
+    if(!$optionalOnly['eligible']) throw new RuntimeException('avaliacao opcional sem resultado nao deveria bloquear: '.implode(' ',$optionalOnly['pending']));
+    if((int)$optionalOnly['required_assessments']!==0 || (int)$optionalOnly['required_graded']!==0) throw new RuntimeException('avaliacao opcional foi contada como obrigatoria');
+
+    $pdo->prepare("UPDATE course_academic_rules SET minimum_grade=70 WHERE course_id=?")->execute([$courseId]);
+    $minimumWithoutRequired=academicEligibilityState($pdo,$enrollmentId);
+    if($minimumWithoutRequired['eligible']) throw new RuntimeException('nota minima sem avaliacao obrigatoria deveria bloquear');
+    $minimumPending=implode(' ',$minimumWithoutRequired['pending']);
+    if(stripos($minimumPending,'avaliação obrigatória')===false && stripos($minimumPending,'avaliacao obrigatoria')===false){
+        throw new RuntimeException('pendencia deveria orientar cadastro de avaliacao obrigatoria');
+    }
+
+    $pdo->prepare("UPDATE course_academic_rules SET minimum_grade=NULL WHERE course_id=?")->execute([$courseId]);
+    $pdo->prepare("INSERT INTO assessments(course_id,title,assessment_type,max_score,weight,required,active) VALUES(?,?,'avaliacao_final',100,1,1,1)")->execute([$courseId,$tag.' Obrigatoria']);
     $assessmentId=(int)$pdo->lastInsertId();
 
+    $ungraded=academicEligibilityState($pdo,$enrollmentId);
+    if($ungraded['eligible']) throw new RuntimeException('avaliacao obrigatoria sem resultado deveria bloquear mesmo sem nota minima');
+    if((int)$ungraded['required_assessments']!==1 || (int)$ungraded['required_graded']!==0) throw new RuntimeException('contagem de avaliacao obrigatoria sem resultado inesperada');
+
+    $pdo->prepare("UPDATE course_academic_rules SET minimum_grade=70 WHERE course_id=?")->execute([$courseId]);
     $pdo->prepare("INSERT INTO assessment_results(assessment_id,enrollment_id,score,status,evaluated_at) VALUES(?,?,60,'avaliado',NOW())")->execute([$assessmentId,$enrollmentId]);
     $low=academicEligibilityState($pdo,$enrollmentId);
     if($low['eligible']) throw new RuntimeException('nota baixa deveria bloquear elegibilidade');
@@ -93,7 +113,7 @@ try{
     if(trim((string)($certificate['validation_hash']??''))==='') throw new RuntimeException('hash de validacao do certificado nao foi gerado');
 
     $pdo->rollBack();
-    fwrite(STDOUT,"ACADEMIC_SMOKE_OK low=60 blocked certificate_blocked high=80 concluded certificate_issued\n");
+    fwrite(STDOUT,"ACADEMIC_SMOKE_OK optional_ungraded_allowed min_without_required_blocked required_ungraded_blocked low=60 blocked certificate_blocked high=80 concluded certificate_issued\n");
     exit(0);
 }catch(Throwable $e){
     if($pdo->inTransaction()) $pdo->rollBack();
