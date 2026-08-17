@@ -28,12 +28,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $minimumAttendance=$rawAttendance===''?null:(float)$rawAttendance;
         if($minimumAttendance!==null && ($minimumAttendance<0 || $minimumAttendance>100)) throw new RuntimeException('A frequência mínima deve ficar entre 0 e 100%.');
 
+        $rawGrade=trim((string)($_POST['minimum_grade']??''));
+        $minimumGrade=$rawGrade===''?null:(float)$rawGrade;
+        if($minimumGrade!==null && ($minimumGrade<0 || $minimumGrade>100)) throw new RuntimeException('A nota mínima deve ficar entre 0 e 100.');
+
         $requireLessons=isset($_POST['require_all_lessons'])?1:0;
         $requireAttendance=isset($_POST['require_all_attendance_records'])?1:0;
         $stmt=$pdo->prepare("INSERT INTO course_academic_rules(course_id,minimum_attendance_percent,minimum_grade,require_all_lessons,require_all_attendance_records,active)
-            VALUES(?,?,NULL,?,?,1)
-            ON DUPLICATE KEY UPDATE minimum_attendance_percent=VALUES(minimum_attendance_percent),minimum_grade=NULL,require_all_lessons=VALUES(require_all_lessons),require_all_attendance_records=VALUES(require_all_attendance_records),active=1");
-        $stmt->execute([$courseId,$minimumAttendance,$requireLessons,$requireAttendance]);
+            VALUES(?,?,?,?,?,1)
+            ON DUPLICATE KEY UPDATE minimum_attendance_percent=VALUES(minimum_attendance_percent),minimum_grade=VALUES(minimum_grade),require_all_lessons=VALUES(require_all_lessons),require_all_attendance_records=VALUES(require_all_attendance_records),active=1");
+        $stmt->execute([$courseId,$minimumAttendance,$minimumGrade,$requireLessons,$requireAttendance]);
         $_SESSION['academic_rules_flash']='Critérios acadêmicos salvos.';
         argo($courseId);
     }catch(Throwable $e){$flash=['message'=>$e->getMessage(),'type'=>'error'];}
@@ -54,8 +58,10 @@ $rules=$courseId>0?academicCourseRules($pdo,$courseId):academicCourseRules($pdo,
 <?php if($courseId>0):?><div class="card"><form method="post"><input type="hidden" name="course_id" value="<?=$courseId?>">
 <label><strong>Frequência mínima presencial (%)</strong></label><input type="number" name="minimum_attendance_percent" min="0" max="100" step="0.01" value="<?=($rules['minimum_attendance_percent']===null||$rules['minimum_attendance_percent']==='')?'':arh((string)$rules['minimum_attendance_percent'])?>" placeholder="Sem exigência">
 <p class="muted">A frequência só é aplicada quando há carga presencial planejada.</p>
+<label><strong>Nota mínima final (0 a 100)</strong></label><input type="number" name="minimum_grade" min="0" max="100" step="0.01" value="<?=($rules['minimum_grade']===null||$rules['minimum_grade']==='')?'':arh((string)$rules['minimum_grade'])?>" placeholder="Sem exigência">
+<p class="muted">Quando definida, exige avaliação obrigatória com resultado lançado e média final igual ou superior ao valor configurado.</p>
 <label class="check"><input type="checkbox" name="require_all_lessons" value="1" <?=((int)($rules['require_all_lessons']??1)===1)?'checked':''?>><span><strong>Exigir conclusão de todas as aulas online</strong><br><span class="muted">Mantém o aluno pendente enquanto houver aula online não concluída.</span></span></label>
 <label class="check"><input type="checkbox" name="require_all_attendance_records" value="1" <?=((int)($rules['require_all_attendance_records']??1)===1)?'checked':''?>><span><strong>Exigir lançamento de todos os encontros presenciais</strong><br><span class="muted">Todos os encontros precisam ter situação registrada.</span></span></label>
-<div class="rule"><strong>Nota mínima / avaliação</strong><p class="muted">O módulo de avaliações e resultados já está operacional, mas a nota mínima ainda não participa da elegibilidade de conclusão/certificação. Por segurança, esse critério permanece desativado até a integração central ser concluída.</p><a class="btn secondary" href="assessments.php?course=<?=$courseId?>">Gerenciar avaliações</a></div>
+<div class="rule"><strong>Avaliações e resultados</strong><p class="muted">A nota mínima participa diretamente da elegibilidade de conclusão e certificação pelo motor acadêmico central.</p><a class="btn secondary" href="assessments.php?course=<?=$courseId?>">Gerenciar avaliações</a></div>
 <button class="btn" type="submit">Salvar critérios</button></form></div><?php else:?><div class="card"><p>Nenhum curso disponível.</p></div><?php endif;?>
 </div></body></html>
