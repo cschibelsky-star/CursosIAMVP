@@ -52,11 +52,10 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS lessons (
 
 ensureAcademicModel($pdo);
 $tag='HML_SMOKE_'.date('Ymd_His').'_'.bin2hex(random_bytes(3));
-$courseId=0;
 
 try{
     $pdo->beginTransaction();
-    $pdo->prepare("INSERT INTO courses(title,audience,objective,status) VALUES(?,?,?,'rascunho')")->execute([$tag,'Teste automatizado de homologacao','Validar criterios academicos']);
+    $pdo->prepare("INSERT INTO courses(title,audience,objective,status) VALUES(?,?,?,'rascunho')")->execute([$tag,'Teste automatizado de homologacao','Validar criterios academicos e certificacao']);
     $courseId=(int)$pdo->lastInsertId();
 
     $pdo->prepare("INSERT INTO students(name,email,active) VALUES(?,?,1)")->execute([$tag.' Aluno',strtolower($tag).'@teste.local']);
@@ -74,14 +73,27 @@ try{
     if($low['eligible']) throw new RuntimeException('nota baixa deveria bloquear elegibilidade');
     if((float)($low['final_grade']??0)!==60.0) throw new RuntimeException('nota final baixa inesperada');
 
+    $blocked=false;
+    try{
+        academicIssueCertificate($pdo,$enrollmentId,'certificado');
+    }catch(RuntimeException $e){
+        $blocked=true;
+    }
+    if(!$blocked) throw new RuntimeException('certificado deveria ser bloqueado com pendencia academica');
+
     $pdo->prepare("UPDATE assessment_results SET score=80,status='avaliado',evaluated_at=NOW() WHERE assessment_id=? AND enrollment_id=?")->execute([$assessmentId,$enrollmentId]);
     $high=academicSyncCompletion($pdo,$enrollmentId);
     if(!$high['eligible']) throw new RuntimeException('nota suficiente deveria liberar elegibilidade: '.implode(' ',$high['pending']));
     if($high['status']!=='concluido') throw new RuntimeException('matricula deveria concluir automaticamente');
     if((float)($high['final_grade']??0)!==80.0) throw new RuntimeException('nota final alta inesperada');
 
+    $certificate=academicIssueCertificate($pdo,$enrollmentId,'certificado');
+    if(($certificate['status']??'')!=='emitido') throw new RuntimeException('certificado deveria ser emitido apos conclusao');
+    if(trim((string)($certificate['certificate_code']??''))==='') throw new RuntimeException('codigo do certificado nao foi gerado');
+    if(trim((string)($certificate['validation_hash']??''))==='') throw new RuntimeException('hash de validacao do certificado nao foi gerado');
+
     $pdo->rollBack();
-    fwrite(STDOUT,"ACADEMIC_SMOKE_OK low=60 blocked high=80 concluded\n");
+    fwrite(STDOUT,"ACADEMIC_SMOKE_OK low=60 blocked certificate_blocked high=80 concluded certificate_issued\n");
     exit(0);
 }catch(Throwable $e){
     if($pdo->inTransaction()) $pdo->rollBack();
