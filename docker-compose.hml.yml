@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: cursos_ia_mvp_next_hml
     restart: unless-stopped
-    command: ["sh", "-lc", "php /var/www/html/academic_hml_smoke.php && apache2-foreground"]
+    command: ["sh", "-lc", "php /var/www/html/academic_hml_smoke.php && php /var/www/html/portal_hml_smoke.php && apache2-foreground"]
     ports:
       - "127.0.0.1:8892:80"
     environment:
