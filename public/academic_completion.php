@@ -34,19 +34,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 'message'=>$state['eligible']?'Matrícula concluída pelos critérios acadêmicos.':'Ainda existem pendências: '.implode(' ',$state['pending'])
             ];
         } elseif($action==='issue_certificate'){
-            $state=academicEligibilityState($pdo,$enrollmentId);
-            if(!$state['eligible']) throw new RuntimeException('Existem pendências acadêmicas: '.implode(' ',$state['pending']));
-            if($state['status']!=='concluido'){
-                $state=academicSyncCompletion($pdo,$enrollmentId);
-            }
-            if($state['status']!=='concluido') throw new RuntimeException('A matrícula ainda não está concluída.');
             $type=(string)($_POST['certificate_type']??'certificado');
-            if(!in_array($type,['certificado','diploma'],true))$type='certificado';
-            $code='CURSO-'.date('Ymd').'-'.str_pad((string)$enrollmentId,6,'0',STR_PAD_LEFT).'-'.strtoupper(substr(hash('sha256',$enrollmentId.'|'.microtime(true)),0,8));
-            $hash=hash('sha256',$code.'|'.$enrollmentId);
-            $stmt=$pdo->prepare("INSERT INTO certificates(enrollment_id,certificate_type,certificate_code,status,issued_at,validation_hash) VALUES(?,?,?,?,NOW(),?) ON DUPLICATE KEY UPDATE certificate_type=VALUES(certificate_type),status='emitido',issued_at=NOW(),validation_hash=VALUES(validation_hash)");
-            $stmt->execute([$enrollmentId,$type,$code,'emitido',$hash]);
-            $_SESSION['academic_completion_flash']=['type'=>'ok','message'=>ucfirst($type).' emitido após validação central dos critérios acadêmicos.'];
+            $certificate=academicIssueCertificate($pdo,$enrollmentId,$type);
+            $_SESSION['academic_completion_flash']=['type'=>'ok','message'=>ucfirst((string)$certificate['certificate_type']).' emitido após validação central dos critérios acadêmicos.'];
         }
         acgo($enrollmentId);
     }catch(Throwable $e){
