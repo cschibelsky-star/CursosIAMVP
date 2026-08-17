@@ -1,8 +1,11 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/core_model.php';
 
 function ensureAcademicModel(PDO $pdo): void
 {
+    ensureCoreCourseModel($pdo);
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS students (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(180) NOT NULL,
