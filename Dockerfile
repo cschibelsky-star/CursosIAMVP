@@ -18,6 +18,7 @@ RUN php -l /var/www/html/index.php \
     && php -l /var/www/html/factory.php \
     && php -l /var/www/html/cidades_inclusivas_model.php \
     && php -l /var/www/html/cidades_inclusivas.php \
+    && php -l /var/www/html/core_model.php \
     && php -l /var/www/html/academic_model.php \
     && php -l /var/www/html/academic_eligibility.php \
     && php -l /var/www/html/academic_rules.php \
