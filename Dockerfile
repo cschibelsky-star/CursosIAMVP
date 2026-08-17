@@ -32,6 +32,8 @@ RUN php -l /var/www/html/index.php \
     && php -l /var/www/html/progress_api.php \
     && php -l /var/www/html/portal_access_admin.php \
     && php -l /var/www/html/turmas_presenciais.php \
+    && php -l /var/www/html/validar_certificado.php \
+    && php -l /var/www/html/certificado.php \
     && php -l /var/www/html/diagnostic.php \
     && php -l /var/www/html/health.php \
     && chown -R www-data:www-data /var/www/html
