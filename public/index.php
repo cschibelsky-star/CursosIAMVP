@@ -121,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($action === 'generate_structure') {
             $cid=(int)($_POST['course_id']??0); $s=$pdo->prepare('SELECT * FROM courses WHERE id=?'); $s->execute([$cid]); $course=$s->fetch(); if(!$course) throw new RuntimeException('Curso não encontrado.');
+            if (($course['title'] ?? '') === 'Cidades Inclusivas') throw new RuntimeException('Cidades Inclusivas usa a estrutura oficial de 5 módulos. O gerador genérico está bloqueado para preservar o programa homologado.');
             $s=$pdo->prepare('SELECT * FROM sources WHERE course_id=? AND active_for_generation=1 ORDER BY id'); $s->execute([$cid]); $sources=$s->fetchAll(); if(!$sources) throw new RuntimeException('Ative ao menos uma fonte válida antes de gerar a estrutura.');
             $engine='fallback'; $note=null;
             if(aiIsReady()) {
