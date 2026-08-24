@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 $enabled = (getenv('AI_ENABLED') ?: '0') === '1';
 $url = trim((string)(getenv('AI_BROKER_URL') ?: ''));
 $token = trim((string)(getenv('AI_BROKER_TOKEN') ?: ''));
