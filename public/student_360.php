@@ -38,7 +38,7 @@ $enrollment=$stmt->fetch();
 if(!$enrollment){http_response_code(404);echo 'Matrícula não encontrada.';exit;}
 
 $academic=academicEnrollmentMetrics($pdo,$enrollmentId);
-$finance=enrollmentFinanceSummary($pdo,$enrollmentId);
+$finance=financeEnrollmentSummary($pdo,$enrollmentId);
 
 $stmt=$pdo->prepare("SELECT COUNT(*) FROM attendance_sessions WHERE cohort_id=?");
 $stmt->execute([(int)($enrollment['cohort_id']??0)]);
