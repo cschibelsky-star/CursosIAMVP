@@ -4,9 +4,34 @@ declare(strict_types=1);
 function sourceCleanText(string $text): string
 {
     $text = str_replace("\0", '', $text);
+    $text = str_replace(["\r\n", "\r"], "\n", $text);
     $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', ' ', $text) ?? $text;
-    $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+    $lines = preg_split('/\n/u', $text) ?: [];
+    $clean = [];
+    foreach ($lines as $line) {
+        $line = preg_replace('/[\t ]+/u', ' ', $line) ?? $line;
+        $clean[] = trim($line);
+    }
+    $text = implode("\n", $clean);
+    $text = preg_replace('/\n{3,}/u', "\n\n", $text) ?? $text;
     return trim($text);
+}
+
+function sourceQuality(string $content): array
+{
+    $content = trim($content);
+    $chars = mb_strlen($content);
+    $words = preg_split('/\s+/u', $content, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $wordCount = count($words);
+    $paragraphs = array_values(array_filter(preg_split('/\n{2,}/u', $content) ?: [], fn(string $p): bool => trim($p) !== ''));
+
+    if ($chars < 200 || $wordCount < 35) {
+        return ['status'=>'baixa','note'=>'Conteúdo muito curto para sustentar uma geração pedagógica confiável.','characters'=>$chars,'words'=>$wordCount,'paragraphs'=>count($paragraphs)];
+    }
+    if ($chars < 1200 || $wordCount < 180) {
+        return ['status'=>'media','note'=>'Fonte utilizável, mas curta. Recomenda-se combinar com outras fontes.','characters'=>$chars,'words'=>$wordCount,'paragraphs'=>count($paragraphs)];
+    }
+    return ['status'=>'boa','note'=>'Volume textual adequado para uso na geração do curso.','characters'=>$chars,'words'=>$wordCount,'paragraphs'=>count($paragraphs)];
 }
 
 function extractDocxText(string $path): string
