@@ -68,7 +68,7 @@ if(!in_array($enrollment['payment_status'],['pago','isento','contrato_institucio
 if($totalLessons>0 && $completedLessons<$totalLessons)$pending[]='Concluir '.($totalLessons-$completedLessons).' aula(s) online.';
 if($totalSessions>0 && (int)($academic['attendance_records']??0)<$totalSessions)$pending[]='Completar os lançamentos de presença da turma.';
 if($enrollment['status']!=='concluido')$pending[]='Realizar o fechamento acadêmico da matrícula.';
-if(!$certificate || $certificate['status']!=='emitido')$pending[]='Emitir certificado/diploma após a conclusão.';
+if(!$certificate || $certificate['status']!=='emitido')$pending[]='Emitir certificado após a conclusão.';
 ?>
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aluno 360 — <?=s360h($enrollment['student_name'])?></title><link rel="stylesheet" href="assets/app.css"></head><body>
 <div class="app-shell"><aside class="sidebar"><div class="brand">Cursos IA <small>Visão operacional do aluno</small></div><nav><div class="nav-title">Operação</div><a class="nav-link" href="dashboard.php"><span class="dot"></span>Dashboard</a><a class="nav-link" href="academic.php"><span class="dot"></span>Controle Acadêmico</a><a class="nav-link" href="financial.php"><span class="dot"></span>Financeiro</a><div class="nav-title">Aluno</div><a class="nav-link active" href="student_360.php?enrollment=<?=$enrollmentId?>"><span class="dot"></span>Ficha 360°</a><a class="nav-link" href="student_progress.php?enrollment=<?=$enrollmentId?>"><span class="dot"></span>Progresso detalhado</a><a class="nav-link" href="enrollment_finance.php?enrollment=<?=$enrollmentId?>"><span class="dot"></span>Extrato financeiro</a></nav></aside>
@@ -81,7 +81,7 @@ if(!$certificate || $certificate['status']!=='emitido')$pending[]='Emitir certif
 <div class="metric"><span class="value"><?=$onlinePct?>%</span><span class="label">Online</span><span class="hint"><?=$completedLessons?>/<?=$totalLessons?> aulas</span></div>
 <div class="metric"><span class="value"><?=$watchedHours?>h</span><span class="label">Assistido</span><span class="hint">Tempo acumulado</span></div>
 <div class="metric"><span class="value"><?=$attendancePct?>%</span><span class="label">Presencial</span><span class="hint"><?=$presentCount?> presença(s)</span></div>
-<div class="metric"><span class="value"><?=s360h($certificate['status']??'não emitido')?></span><span class="label">Documento</span><span class="hint"><?=s360h($certificate['certificate_type']??'certificado/diploma')?></span></div>
+<div class="metric"><span class="value"><?=s360h($certificate['status']??'não emitido')?></span><span class="label">Documento</span><span class="hint"><?=s360h($certificate['certificate_type']??'certificado')?></span></div>
 </div>
 
 <div class="grid grid-2">
@@ -107,7 +107,7 @@ if(!$certificate || $certificate['status']!=='emitido')$pending[]='Emitir certif
 
 <div class="grid grid-2" style="margin-top:18px">
 <section class="card"><div class="section-title"><h2>Avaliações</h2><span class="pill warn">Ainda não parametrizado</span></div><p>Esta HML local ainda não possui o modelo de avaliações/notas integrado ao fechamento da matrícula.</p><p class="muted">A Ficha 360 não inventa uma nota. Esse bloco será ativado quando o motor de avaliações for reconciliado com o workspace local.</p></section>
-<section class="card"><div class="section-title"><h2>Certificação</h2><span class="pill <?=($certificate&&$certificate['status']==='emitido')?'ok':'warn'?>"><?=s360h($certificate['status']??'pendente')?></span></div><?php if($certificate):?><p><strong><?=s360h(ucfirst($certificate['certificate_type']))?></strong><br>Código: <?=s360h($certificate['certificate_code'])?><br>Emitido em: <?=s360date($certificate['issued_at'])?></p><?php else:?><p>Nenhum certificado ou diploma emitido para esta matrícula.</p><?php endif;?></section>
+<section class="card"><div class="section-title"><h2>Certificação</h2><span class="pill <?=($certificate&&$certificate['status']==='emitido')?'ok':'warn'?>"><?=s360h($certificate['status']??'pendente')?></span></div><?php if($certificate):?><p><strong><?=s360h(ucfirst($certificate['certificate_type']))?></strong><br>Código: <?=s360h($certificate['certificate_code'])?><br>Emitido em: <?=s360date($certificate['issued_at'])?></p><?php else:?><p>Nenhum certificado emitido para esta matrícula.</p><?php endif;?></section>
 </div>
 
 <section class="card" style="margin-top:18px"><div class="section-title"><h2>Próximas ações</h2><span class="pill <?=empty($pending)?'ok':'warn'?>"><?=empty($pending)?'Fluxo completo':count($pending).' pendência(s)'?></span></div><?php if($pending):?><ul><?php foreach($pending as $item):?><li><?=s360h($item)?></li><?php endforeach;?></ul><?php else:?><p>Financeiro, execução acadêmica, fechamento e documento estão concluídos para esta matrícula.</p><?php endif;?></section>
