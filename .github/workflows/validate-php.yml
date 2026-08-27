@@ -1,9 +1,10 @@
 name: Validate PHP
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
@@ -12,8 +13,11 @@ jobs:
   php-lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout trusted base
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -21,26 +25,37 @@ jobs:
           php-version: '8.3'
           coverage: none
 
-      - name: Reject committed environment and key files
+      - name: Fetch pull request head without credentials
         shell: bash
         run: |
           set -euo pipefail
-          if git ls-files | grep -E '(^|/)\.env($|\.)|\.(pem|key)$' >/dev/null; then
-            echo 'Forbidden environment/key file committed.'
-            exit 1
-          fi
+          git fetch --no-tags origin "pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/pr-head" --depth=1
+
+      - name: Reject forbidden changed paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...refs/remotes/origin/pr-head")
+          printf '%s\n' "${changed[@]}"
+          for file in "${changed[@]}"; do
+            case "$file" in
+              .env|.env.*|*.pem|*.key|secrets/*|.github/workflows/*)
+                echo "Forbidden changed path: $file"
+                exit 1
+                ;;
+            esac
+          done
 
       - name: Lint changed PHP files
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "${{ github.base_ref }}" --depth=1
-          mapfile -t files < <(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- '*.php')
+          mapfile -t files < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...refs/remotes/origin/pr-head" -- '*.php')
           if [ "${#files[@]}" -eq 0 ]; then
             echo 'No changed PHP files.'
             exit 0
           fi
-          printf '%s\n' "${files[@]}"
           for file in "${files[@]}"; do
-            php -l "$file"
+            git show "refs/remotes/origin/pr-head:$file" > "/tmp/$(basename "$file")"
+            php -l "/tmp/$(basename "$file")"
           done
