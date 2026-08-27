@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 header('Content-Type: text/plain; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
 require_once __DIR__ . '/cidades_inclusivas_model.php';
 require_once __DIR__ . '/academic_model.php';
 require_once __DIR__ . '/student_portal_model.php';
