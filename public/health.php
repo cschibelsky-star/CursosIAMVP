@@ -32,10 +32,12 @@ try {
     ensureCidadesInclusivas($pdo);
     ensureAcademicModel($pdo);
     ensureStudentPortal($pdo);
+    header('X-Cursos-IA-Bridge-Version: autonomous-v2');
     header('X-Cursos-IA-Health: ok');
     echo "OK\n";
 } catch (Throwable $e) {
     http_response_code(503);
+    header('X-Cursos-IA-Bridge-Version: autonomous-v2');
     header('X-Cursos-IA-Health: error');
     echo "ERROR:" . $e->getMessage() . "\n";
 }
