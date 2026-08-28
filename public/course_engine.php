@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/ai_generator.php';
 
 function courseEngineTrim(string $text, int $maxChars): string
 {
@@ -12,7 +13,7 @@ function courseEngineTrim(string $text, int $maxChars): string
 
 function courseEngineSourceContext(PDO $pdo, int $courseId, int $maxChars = 12000): string
 {
-    $stmt = $pdo->prepare('SELECT name, source_type, content FROM sources WHERE course_id=? ORDER BY id');
+    $stmt = $pdo->prepare('SELECT name, source_type, content FROM sources WHERE course_id=? AND active_for_generation=1 ORDER BY id');
     $stmt->execute([$courseId]);
     $parts = [];
     foreach ($stmt->fetchAll() as $source) {
@@ -68,12 +69,87 @@ function courseEngineBuildMaterial(array $course, string $outline, string $sourc
     };
 }
 
+function courseEngineMaterialInstruction(string $type): string
+{
+    return match ($type) {
+        'slides' => 'Gere um roteiro completo de slides por módulo e aula, com títulos, bullets, exemplos e checklist. Não use markdown de tabela. Baseie-se estritamente nas fontes e nas aulas.',
+        'apostila' => 'Gere a apostila completa do curso, organizada por módulos e aulas, com explicações, exemplos, checklists, resumos e atividades. Não invente fatos fora das fontes.',
+        'exercicios' => 'Gere exercícios e atividades práticas por aula, com perguntas de compreensão, aplicação, situações-problema e respostas esperadas, sempre respondíveis pelo conteúdo do curso.',
+        'avaliacao' => 'Gere uma avaliação com 10 questões objetivas, 2 situações práticas, 1 atividade final e gabarito comentado, cobrindo todos os módulos e somente conteúdos presentes nas fontes.',
+        'pagina_venda' => 'Gere uma página de apresentação comercial do curso com headline, público, problema, benefícios, conteúdo programático, metodologia, certificação, FAQ e chamada para matrícula, sem promessas não sustentadas.',
+        'certificado' => 'Gere o texto-base e os campos do certificado do curso, incluindo objetivo e conteúdo programático, sem inventar carga horária ou dados não fornecidos.',
+        default => throw new RuntimeException('Tipo de material não reconhecido.'),
+    };
+}
+
+function courseEngineBuildMaterialWithAI(array $course, string $outline, string $sources, string $lessons, string $type): array
+{
+    if (!aiIsReady()) {
+        throw new RuntimeException('Centro IA não está disponível para geração de materiais.');
+    }
+
+    $cfg = aiConfig();
+    if (($cfg['mode'] ?? 'broker') !== 'broker') {
+        throw new RuntimeException('A Fábrica de Materiais exige o modo broker do Centro IA.');
+    }
+
+    $instruction = courseEngineMaterialInstruction($type);
+    $system = 'Você é um designer instrucional e redator pedagógico. Produza materiais de curso em português brasileiro, estritamente fundamentados nas fontes e no conteúdo pedagógico fornecidos. Não invente leis, números, fatos, referências, carga horária ou promessas. Retorne somente o material final em texto, sem comentários sobre o processo.';
+    $user = "Curso: {$course['title']}\nPúblico-alvo: {$course['audience']}\nObjetivo: {$course['objective']}\n\nESTRUTURA DO CURSO\n{$outline}\n\nFONTES\n{$sources}\n\nAULAS JÁ ESTRUTURADAS\n{$lessons}\n\nTAREFA\n{$instruction}";
+
+    $body = aiHttpJson($cfg['broker_url'], [
+        'Authorization: Bearer ' . $cfg['broker_token'],
+        'Content-Type: application/json',
+        'X-Vitrine-Project: ' . $cfg['project_id'],
+    ], [
+        'project_id' => $cfg['project_id'],
+        'capability' => 'course_generation',
+        'input' => [
+            'system' => $system,
+            'user' => $user,
+            'response_format' => 'text',
+            'temperature' => 0.2,
+        ],
+    ]);
+
+    $content = $body['output_text'] ?? $body['content'] ?? null;
+    if (!is_string($content) || trim($content) === '') {
+        if (isset($body['output_json']) && is_array($body['output_json'])) {
+            $content = json_encode($body['output_json'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        }
+    }
+    if (!is_string($content) || trim($content) === '') {
+        throw new RuntimeException('Centro IA retornou material vazio.');
+    }
+
+    $titles = [
+        'slides'=>'Slides do curso','apostila'=>'Apostila do curso','exercicios'=>'Exercícios e atividades','avaliacao'=>'Avaliação do curso','pagina_venda'=>'Página de apresentação e venda','certificado'=>'Modelo de certificado'
+    ];
+    return [$titles[$type] ?? ucfirst($type), trim($content), 'centro_ia_broker_v1'];
+}
+
+function courseEngineGenerateMaterial(array $course, string $outline, string $sources, string $lessons, string $type): array
+{
+    if (aiIsReady()) {
+        try {
+            return courseEngineBuildMaterialWithAI($course, $outline, $sources, $lessons, $type);
+        } catch (Throwable $e) {
+            [$title, $content] = courseEngineBuildMaterial($course, $outline, $sources, $lessons, $type);
+            return [$title, $content, 'grounded_editorial_fallback_v0.4'];
+        }
+    }
+
+    [$title, $content] = courseEngineBuildMaterial($course, $outline, $sources, $lessons, $type);
+    return [$title, $content, 'grounded_editorial_v0.4'];
+}
+
 function courseEngineStatus(): array
 {
+    $ready = aiIsReady();
     return [
-        'mode' => 'grounded_editorial_v0.4',
-        'external_ai' => false,
-        'provider' => null,
+        'mode' => $ready ? 'centro_ia_broker_v1' : 'grounded_editorial_v0.4',
+        'external_ai' => $ready,
+        'provider' => $ready ? aiProviderLabel() : null,
         'grounded_in_sources' => true,
         'grounded_in_lessons' => true,
     ];
