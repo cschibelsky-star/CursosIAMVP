@@ -62,11 +62,15 @@ $plannedMinutes=(int)($academic['planned_minutes']??0);
 $attendedMinutes=(int)($academic['attended_minutes']??0);
 $attendancePct=$plannedMinutes>0?round(($attendedMinutes/$plannedMinutes)*100):0;
 $presentCount=(int)($academic['present_count']??0);
+$requiredAssessments=(int)($academic['required_assessments']??0);
+$gradedAssessments=(int)($academic['required_graded']??0);
+$finalGrade=$academic['final_grade']===null?null:(float)$academic['final_grade'];
 
 $pending=[];
 if(!in_array($enrollment['payment_status'],['pago','isento','contrato_institucional'],true))$pending[]='Regularizar o financeiro da matrícula.';
 if($totalLessons>0 && $completedLessons<$totalLessons)$pending[]='Concluir '.($totalLessons-$completedLessons).' aula(s) online.';
 if($totalSessions>0 && (int)($academic['attendance_records']??0)<$totalSessions)$pending[]='Completar os lançamentos de presença da turma.';
+if($requiredAssessments>0 && $gradedAssessments<$requiredAssessments)$pending[]='Lançar resultado de '.($requiredAssessments-$gradedAssessments).' avaliação(ões) obrigatória(s).';
 if($enrollment['status']!=='concluido')$pending[]='Realizar o fechamento acadêmico da matrícula.';
 if(!$certificate || $certificate['status']!=='emitido')$pending[]='Emitir certificado após a conclusão.';
 ?>
@@ -106,9 +110,9 @@ if(!$certificate || $certificate['status']!=='emitido')$pending[]='Emitir certif
 </div>
 
 <div class="grid grid-2" style="margin-top:18px">
-<section class="card"><div class="section-title"><h2>Avaliações</h2><span class="pill warn">Ainda não parametrizado</span></div><p>Esta HML local ainda não possui o modelo de avaliações/notas integrado ao fechamento da matrícula.</p><p class="muted">A Ficha 360 não inventa uma nota. Esse bloco será ativado quando o motor de avaliações for reconciliado com o workspace local.</p></section>
+<section class="card"><div class="section-title"><h2>Avaliações</h2><a class="btn ghost" href="assessments.php?course=<?=(int)$enrollment['course_id']?>">Abrir avaliações</a></div><p><strong>Obrigatórias avaliadas:</strong> <?=$gradedAssessments?> de <?=$requiredAssessments?>.</p><p><strong>Nota final:</strong> <?=$finalGrade===null?'—':number_format($finalGrade,2,',','.')?>.</p><p class="muted">Esses dados fazem parte do motor central de elegibilidade acadêmica usado para conclusão da matrícula e certificação.</p></section>
 <section class="card"><div class="section-title"><h2>Certificação</h2><span class="pill <?=($certificate&&$certificate['status']==='emitido')?'ok':'warn'?>"><?=s360h($certificate['status']??'pendente')?></span></div><?php if($certificate):?><p><strong><?=s360h(ucfirst($certificate['certificate_type']))?></strong><br>Código: <?=s360h($certificate['certificate_code'])?><br>Emitido em: <?=s360date($certificate['issued_at'])?></p><?php else:?><p>Nenhum certificado emitido para esta matrícula.</p><?php endif;?></section>
 </div>
 
-<section class="card" style="margin-top:18px"><div class="section-title"><h2>Próximas ações</h2><span class="pill <?=empty($pending)?'ok':'warn'?>"><?=empty($pending)?'Fluxo completo':count($pending).' pendência(s)'?></span></div><?php if($pending):?><ul><?php foreach($pending as $item):?><li><?=s360h($item)?></li><?php endforeach;?></ul><?php else:?><p>Financeiro, execução acadêmica, fechamento e documento estão concluídos para esta matrícula.</p><?php endif;?></section>
+<section class="card" style="margin-top:18px"><div class="section-title"><h2>Próximas ações</h2><span class="pill <?=empty($pending)?'ok':'warn'?>"><?=empty($pending)?'Fluxo completo':count($pending).' pendência(s)'?></span></div><?php if($pending):?><ul><?php foreach($pending as $item):?><li><?=s360h($item)?></li><?php endforeach;?></ul><?php else:?><p>Financeiro, execução acadêmica, avaliações, fechamento e documento estão concluídos para esta matrícula.</p><?php endif;?></section>
 </main></div></div></body></html>
