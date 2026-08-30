@@ -66,7 +66,7 @@ function updatePackageStatus(PDO $pdo, int $courseId, array $types): bool
     $stmt = $pdo->prepare("SELECT COUNT(DISTINCT asset_type) FROM course_assets WHERE course_id=? AND status='gerado' AND asset_type IN ($placeholders)");
     $stmt->execute($params);
     $complete = (int)$stmt->fetchColumn() === count($types);
-    $pdo->prepare("UPDATE courses SET status=? WHERE id=?")->execute([$complete ? 'pacote_didatico_gerado' : 'primeira_aula_revisada', $courseId]);
+    $pdo->prepare("UPDATE courses SET status=? WHERE id=?")->execute([$complete ? 'pacote_didatico_gerado' : 'homologado_pedagogico', $courseId]);
     return $complete;
 }
 
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$courseId, $type, $assetTitle, $content, $engineMode]);
         }
         $complete = updatePackageStatus($pdo, $courseId, $types);
-        $course['status'] = $complete ? 'pacote_didatico_gerado' : 'primeira_aula_revisada';
+        $course['status'] = $complete ? 'pacote_didatico_gerado' : 'homologado_pedagogico';
         $message = $requested === 'all' ? 'Pacote didático completo gerado a partir das fontes e aulas do curso.' : 'Material gerado. O pacote será considerado completo somente quando os 6 materiais estiverem prontos.';
     } catch (Throwable $e) { $error = $e->getMessage(); }
 }
@@ -110,7 +110,7 @@ $generatedCount = count(array_filter($types, fn(string $type): bool => isset($as
 $packageComplete = $generatedCount === count($types);
 if (($course['status'] ?? '') === 'pacote_didatico_gerado' && !$packageComplete) {
     updatePackageStatus($pdo, $courseId, $types);
-    $course['status'] = 'primeira_aula_revisada';
+    $course['status'] = 'homologado_pedagogico';
 }
 ?>
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fábrica do Curso — Cursos IA</title><link rel="stylesheet" href="assets/app.css"></head><body>
