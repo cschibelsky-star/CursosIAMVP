@@ -1,8 +1,8 @@
 FROM php:8.3-apache
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libonig-dev libzip-dev poppler-utils tesseract-ocr tesseract-ocr-por \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip \
+    && apt-get install -y --no-install-recommends libcurl4-openssl-dev libonig-dev libzip-dev poppler-utils tesseract-ocr tesseract-ocr-por \
+    && docker-php-ext-install pdo pdo_mysql mbstring zip curl \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
