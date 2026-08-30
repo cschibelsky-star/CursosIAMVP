@@ -1,0 +1,26 @@
+name: Validate Container
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  container-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        env:
+          AI_BROKER_TOKEN: ci-placeholder-token
+          AI_API_KEY: ""
+        run: docker compose -f docker-compose.hml.yml config --quiet
+
+      - name: Build application image
+        run: docker build --pull --tag cursos-ia-ci:${{ github.sha }} .
