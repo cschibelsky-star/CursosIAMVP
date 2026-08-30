@@ -1,7 +1,7 @@
 FROM php:8.3-apache
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libonig-dev libzip-dev poppler-utils \
+    && apt-get install -y --no-install-recommends libonig-dev libzip-dev poppler-utils tesseract-ocr tesseract-ocr-por \
     && docker-php-ext-install pdo pdo_mysql mbstring zip \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
@@ -14,8 +14,16 @@ RUN php -l /var/www/html/index.php \
     && php -l /var/www/html/dashboard.php \
     && php -l /var/www/html/homologacao_visual.php \
     && php -l /var/www/html/source_processor.php \
+    && php -l /var/www/html/ai_generator.php \
     && php -l /var/www/html/course_engine.php \
     && php -l /var/www/html/factory.php \
+    && php -l /var/www/html/lesson_editor.php \
+    && php -l /var/www/html/video_model.php \
+    && php -l /var/www/html/video_pipeline.php \
+    && php -l /var/www/html/finance_model.php \
+    && php -l /var/www/html/financial.php \
+    && php -l /var/www/html/enrollment_finance.php \
+    && php -l /var/www/html/student_360.php \
     && php -l /var/www/html/cidades_inclusivas_model.php \
     && php -l /var/www/html/cidades_inclusivas.php \
     && php -l /var/www/html/core_model.php \
