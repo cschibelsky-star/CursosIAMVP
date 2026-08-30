@@ -6,7 +6,7 @@ services:
     container_name: cursos_ia_mvp_hml
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8891:80"
+      - "127.0.0.1:8894:80"
     environment:
       APP_ENV: homologation
       DB_HOST: db
@@ -14,6 +14,14 @@ services:
       DB_DATABASE: cursos_ia_mvp
       DB_USERNAME: cursos_ia
       DB_PASSWORD: cursos_ia_hml
+      AI_ENABLED: "1"
+      AI_MODE: broker
+      AI_PROJECT_ID: cursos-ia-mvp
+      AI_BROKER_URL: http://vitrine_core_web_hml/api/internal/centro-ia/execute
+      AI_BROKER_TOKEN: ${AI_BROKER_TOKEN:?AI_BROKER_TOKEN is required}
+      AI_API_URL: ""
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ""
     depends_on:
       db:
         condition: service_healthy
