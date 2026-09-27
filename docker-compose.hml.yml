@@ -9,7 +9,14 @@ services:
       - "127.0.0.1:8894:80"
     env_file:
       - path: ../shared/secrets/cursos-ia-app-hml.env
-        required: false # CI has no secrets; the database cannot start without them.
+        required: false # CI has no secrets; startup below requires them at runtime.
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        : "$${DB_PASSWORD:?DB_PASSWORD is required}"
+        : "$${AI_BROKER_TOKEN:?AI_BROKER_TOKEN is required}"
+        exec apache2-foreground
     environment:
       APP_ENV: homologation
       DB_HOST: db
@@ -43,7 +50,7 @@ services:
     volumes:
       - ../shared/data/mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD-SHELL", "test -n \"$${MARIADB_PASSWORD:-}\" && test -n \"$${MARIADB_ROOT_PASSWORD:-}\" && healthcheck.sh --connect --innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 10
