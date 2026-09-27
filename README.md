@@ -24,6 +24,6 @@ ser feita no banco e verificada separadamente. Não copiar as senhas antigas do
 Git para os novos arquivos sem avaliar a rotação.
 
 Os arquivos são opcionais somente para permitir `docker compose config` no CI.
-Sem eles, a aplicação não consegue conectar ao banco e o serviço de banco não
-deve ser implantado. O CI valida a sintaxe e o build, não a disponibilidade de
-secrets nem a inicialização dos serviços.
+Sem eles, a aplicação recusa iniciar e o banco não passa no healthcheck; não
+implantar os serviços antes de provisioná-los. O CI valida a sintaxe e o build,
+não a disponibilidade de secrets nem a inicialização dos serviços.
