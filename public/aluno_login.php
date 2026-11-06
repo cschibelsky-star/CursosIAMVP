@@ -51,7 +51,153 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 }
 ?>
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portal do Aluno — Cursos IA</title>
-<style>:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#eef2f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center}.box{width:min(440px,calc(100% - 28px));background:#fff;border:1px solid #dfe5ef;border-radius:18px;padding:30px;box-shadow:0 16px 50px rgba(16,24,40,.08)}.brand{font-weight:800;color:#182a52;margin-bottom:28px}.tag{display:inline-block;background:#edf2ff;color:#294273;border-radius:999px;padding:6px 9px;font-size:12px;margin-bottom:12px}h1{margin:0 0 8px}p{color:#667085;line-height:1.55}label{display:block;font-size:13px;font-weight:700;margin:18px 0 6px}input{width:100%;padding:13px;border:1px solid #cfd6e4;border-radius:9px;font:inherit;text-transform:uppercase;letter-spacing:.08em}.btn{width:100%;border:0;background:#182a52;color:#fff;border-radius:9px;padding:13px;font-weight:800;margin-top:14px;cursor:pointer}.error{background:#fff0f0;color:#9b1c1c;padding:11px 12px;border-radius:9px;margin:12px 0}.muted{font-size:12px}.admin{margin-top:24px;text-align:center}.admin a{color:#667085;text-decoration:none}</style></head><body>
-<div class="box"><div class="brand">Cursos IA</div><span class="tag">Portal do Aluno · HML v0.7</span><h1>Acesse seu curso</h1><p>Use o código individual vinculado à sua matrícula. Seu progresso, aulas e certificação ficam reunidos neste portal.</p><?php if($error):?><div class="error"><?=lh($error)?></div><?php endif;?><form method="post"><label>Código de acesso</label><input name="access_code" autocomplete="one-time-code" maxlength="64" required autofocus placeholder="EX.: A1B2C3D4E5F6"><button class="btn">Entrar no curso</button></form><p class="muted">Este acesso por código é o mecanismo de homologação. A produção receberá autenticação forte e recuperação segura de acesso.</p><div class="admin"><a href="academic.php">Área administrativa</a></div></div>
-</body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Acesso do Aluno — Cursos IA EAD</title>
+  <link rel="stylesheet" href="assets/app.css">
+  <style>
+    body {
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0b0f19 80%);
+      padding: 20px;
+    }
+    .auth-card {
+      width: min(440px, 100%);
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-lg);
+      padding: 36px 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    }
+    .auth-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .auth-brand {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #a5b4fc, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    .auth-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .auth-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: var(--brand-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      background: var(--brand-gradient);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+    }
+    .btn-submit:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .error-alert {
+      background: var(--danger-bg);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .auth-footer {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-light);
+      padding-top: 20px;
+    }
+    .auth-footer a {
+      color: var(--text-secondary);
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-brand">🎓 Cursos IA MVP</div>
+      <h1 class="auth-title">Ambiente Virtual do Aluno</h1>
+      <p class="auth-subtitle">Insira seu código individual para acessar suas aulas e certificações.</p>
+    </div>
+
+    <?php if($error):?>
+      <div class="error-alert">
+        <span>⚠️</span>
+        <span><?=lh($error)?></span>
+      </div>
+    <?php endif;?>
+
+    <form method="post">
+      <div class="form-group">
+        <label class="form-label" for="access_code">Código de Matrícula</label>
+        <input id="access_code" class="form-input" name="access_code" autocomplete="one-time-code" maxlength="64" required autofocus placeholder="Ex: MATR-7X89">
+      </div>
+      <button type="submit" class="btn-submit">Entrar na Plataforma →</button>
+    </form>
+
+    <div class="auth-footer">
+      <a href="index.php">Ir para Painel Administrativo</a>
+    </div>
+  </div>
+</body>
+</html>

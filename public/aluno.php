@@ -71,17 +71,238 @@ foreach($lessons as $lesson){
     $modules[$key]['lessons'][]=$lesson;
 }
 ?>
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Meu Curso — <?=ph($enrollment['course_title'])?></title>
-<style>:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f6fa}*{box-sizing:border-box}body{margin:0}.top{background:#111a2e;color:#fff;padding:18px 26px;display:flex;justify-content:space-between;align-items:center}.top a{color:#fff;text-decoration:none}.wrap{max-width:1180px;margin:auto;padding:24px}.hero,.card{background:#fff;border:1px solid #e2e7f0;border-radius:16px;padding:20px;margin-bottom:16px}.hero{display:grid;grid-template-columns:1fr 260px;gap:24px}.progress{height:12px;background:#e9edf4;border-radius:999px;overflow:hidden}.progress span{display:block;height:100%;background:#182a52}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.metric{background:#fff;border:1px solid #e2e7f0;border-radius:14px;padding:16px}.metric b{display:block;font-size:26px}.module{border-top:1px solid #edf0f4;padding-top:16px;margin-top:16px}.lesson{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:12px 0;border-top:1px dashed #e6eaf0}.lesson:first-of-type{border-top:0}.btn{display:inline-block;background:#182a52;color:#fff;border-radius:9px;padding:9px 13px;text-decoration:none;font-weight:700}.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#edf2ff;font-size:11px}.ok{background:#e8f7ed;color:#176b35}.warn{background:#fff4df;color:#8a5a00}.muted{color:#667085;font-size:13px}.agenda{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.agenda-item{padding:14px;border:1px solid #e4e8ef;border-radius:11px}.status-card.ready{border-color:#b7dfc5;background:#f4fbf6}.status-card.pending{border-color:#efd79c;background:#fffaf0}.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}.status-grid div{padding:12px;border:1px solid #e4e8ef;border-radius:10px;background:#fff}.status-grid b{display:block;font-size:22px}@media(max-width:850px){.hero{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.agenda{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr}.wrap{padding:14px}}</style></head><body>
-<div class="top"><strong>Portal do Aluno</strong><div><?=ph($enrollment['student_name'])?> · <a href="aluno_login.php?logout=1">Sair</a></div></div><main class="wrap">
-<div class="hero"><div><span class="pill">Curso <?=ph($modality)?></span><h1><?=ph($enrollment['course_title'])?></h1><p><?=ph($enrollment['course_objective'])?></p><?php if($enrollment['cohort_name']):?><p class="muted"><strong>Turma:</strong> <?=ph($enrollment['cohort_name'])?><?php if($enrollment['organization_name']):?> · <?=ph($enrollment['organization_name'])?><?php endif;?><?php if($enrollment['location']):?> · <?=ph($enrollment['location'])?><?php endif;?></p><?php endif;?></div><div><strong><?=$courseProgress?>% de andamento</strong><div class="progress" aria-label="Andamento do curso"><span style="width:<?=$courseProgress?>%"></span></div><p class="muted"><?php if($modality==='presencial'):?><?=$presentSessions?> de <?=$totalSessions?> encontros com presença<br><?=fmtPlannedMinutes($attendedMinutes)?> de carga registrada<?php elseif($modality==='hibrido'):?>Online: <?=$onlineProgress?>% · Presencial: <?=$presentialProgress?>%<?php else:?><?=$done?> de <?=$total?> aulas concluídas<br><?=fmtMinutes($watched)?> assistidos<?php endif;?></p><span class="pill <?=in_array($enrollment['payment_status'],['pago','contrato_institucional','isento'],true)?'ok':'warn'?>">Financeiro: <?=ph($enrollment['payment_status'])?></span></div></div>
-<div class="metrics"><?php if($isOnline):?><div class="metric"><b><?=$done?>/<?=$total?></b><span>Aulas online concluídas</span></div><div class="metric"><b><?=fmtMinutes($watched)?></b><span>Tempo online assistido</span></div><?php endif;?><?php if($isPresential):?><div class="metric"><b><?=$presentSessions?>/<?=$totalSessions?></b><span>Presenças na turma</span></div><div class="metric"><b><?=fmtPlannedMinutes($attendedMinutes)?></b><span>Carga presencial registrada</span></div><?php endif;?><div class="metric"><b><?=ph($certificate['status']??'—')?></b><span>Certificação</span></div></div>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Painel do Aluno — <?=ph($enrollment['course_title'])?></title>
+  <link rel="stylesheet" href="assets/app.css">
+  <style>
+    .student-wrap {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 32px;
+      align-items: center;
+      box-shadow: var(--shadow-lg);
+    }
+    .hero-banner h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .stats-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .stat-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stat-box .val {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+    }
+    .stat-box .lbl {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .curriculum-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 24px;
+    }
+    .module-group {
+      margin-top: 20px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--bg-surface);
+    }
+    .module-header {
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-light);
+      font-weight: 700;
+      color: #fff;
+    }
+    .lesson-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      gap: 16px;
+      transition: background 0.15s ease;
+    }
+    .lesson-item:last-child {
+      border-bottom: none;
+    }
+    .lesson-item:hover {
+      background: var(--bg-hover);
+    }
+    .lesson-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .lesson-title {
+      font-weight: 600;
+      color: #fff;
+      font-size: 0.95rem;
+    }
+    @media (max-width: 860px) {
+      .hero-banner {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="student-navbar">
+    <div class="brand-logo">🎓 Cursos IA MVP</div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <span style="font-weight:600;color:var(--text-secondary);font-size:0.9rem;">
+        <?=ph($enrollment['student_name'])?>
+      </span>
+      <a href="aluno_login.php?logout=1" class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem;">Sair</a>
+    </div>
+  </header>
 
-<div class="card status-card <?=$academicState['eligible']?'ready':'pending'?>"><h2>Situação acadêmica</h2><p><span class="pill <?=$academicState['eligible']?'ok':'warn'?>"><?=$academicState['eligible']?'Critérios acadêmicos cumpridos':'Ainda existem pendências'?></span></p><div class="status-grid"><div><b><?=$academicState['completed_lessons']?>/<?=$academicState['total_lessons']?></b><span>Aulas concluídas</span></div><div><b><?=academicRuleNumber($attendancePercent)?>%</b><span>Frequência registrada</span></div><div><b><?=$finalGrade===null?'—':ph(academicRuleNumber((float)$finalGrade))?></b><span>Nota final</span></div></div><?php if(!$academicState['eligible']):?><p class="muted">Para concluir o curso, verifique os itens abaixo:</p><ul><?php foreach($academicState['pending'] as $pending):?><li><?=ph($pending)?></li><?php endforeach;?></ul><?php else:?><p class="muted">Todos os critérios configurados para este curso foram atendidos. A conclusão e a emissão do documento seguem o fluxo acadêmico da instituição.</p><?php endif;?></div>
+  <main class="student-wrap">
+    <section class="hero-banner">
+      <div>
+        <div style="margin-bottom:12px;">
+          <span class="pill ok">Modalidade <?=ph(strtoupper($modality))?></span>
+          <span class="pill">Turma: <?=ph($enrollment['cohort_name'] ?: 'Turma Padrão')?></span>
+        </div>
+        <h1><?=ph($enrollment['course_title'])?></h1>
+        <p><?=ph($enrollment['course_objective'])?></p>
+      </div>
 
-<div class="card"><h2>Programa do curso</h2><p class="muted">Esta é a estrutura pedagógica oficial do curso: módulos, aulas/temas e objetivos. <?php if($isOnline):?>Nas modalidades online e híbrida, o programa também funciona como navegação para acessar cada aula e acompanhar o progresso individual.<?php else:?>Na modalidade presencial, o programa orienta os conteúdos ministrados pela turma e o andamento é registrado pela frequência e carga horária.<?php endif;?></p>
-<?php foreach($modules as $module):?><section class="module"><h3>Módulo <?=$module['position']?> — <?=ph($module['title'])?></h3><?php foreach($module['lessons'] as $lesson): $pct=(float)$lesson['percent_complete'];?><div class="lesson"><div><strong>Aula <?=$lesson['lesson_position']?> — <?=ph($lesson['lesson_title'])?></strong><br><span class="muted"><?=ph($lesson['objective'])?></span><?php if($isOnline):?><br><span class="pill <?=$pct>=100?'ok':''?>"><?=$pct>=100?'Concluída':($pct>0?round($pct).'% assistida':'Não iniciada')?></span><?php endif;?></div><?php if($isOnline):?><a class="btn" href="aula.php?id=<?=$lesson['lesson_id']?>"><?=$pct>0&&$pct<100?'Continuar':'Abrir aula'?></a><?php endif;?></div><?php endforeach;?></section><?php endforeach;?></div>
+      <div style="background:rgba(0,0,0,0.3);padding:20px;border-radius:var(--radius-md);border:1px solid var(--border-light);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Progresso Geral</span>
+          <span style="font-size:1.1rem;font-weight:800;color:#fff;"><?=$courseProgress?>%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" style="width:<?=$courseProgress?>%;"></div>
+        </div>
+        <p style="font-size:0.8rem;margin:8px 0 0 0;color:var(--text-muted);">
+          <?=$done?> de <?=$total?> aulas concluídas
+        </p>
+      </div>
+    </section>
 
-<?php if($isPresential):?><div class="card"><h2>Calendário da turma presencial</h2><p class="muted">Cada registro abaixo representa um encontro/dia letivo pertencente ao curso da sua turma.</p><div class="agenda"><?php foreach($attendance as $item):?><div class="agenda-item"><strong><?=ph($item['title'])?></strong><p><?=ph($item['session_date'])?><?php if($item['start_time']):?> · <?=substr((string)$item['start_time'],0,5)?><?php endif;?></p><p class="muted"><?=ph($item['location'])?> · <?=$item['planned_minutes']?> min previstos</p><span class="pill <?=$item['attendance_status']==='presente'?'ok':''?>"><?=ph($item['attendance_status'])?><?php if((int)$item['minutes_attended']>0):?> · <?=$item['minutes_attended']?> min<?php endif;?></span></div><?php endforeach;if(!$attendance):?><p class="muted">O calendário desta turma ainda não foi cadastrado.</p><?php endif;?></div></div><?php endif;?>
-<div class="card"><h2>Certificação</h2><?php if($certificate && $certificate['status']==='emitido'):?><p><span class="pill ok"><?=ph($certificate['certificate_type'])?> emitido</span></p><p>Código de validação: <strong><?=ph($certificate['certificate_code'])?></strong></p><p><a class="btn" href="certificado.php?hash=<?=rawurlencode((string)$certificate['validation_hash'])?>">Ver certificado</a> <a class="btn" href="validar_certificado.php?hash=<?=rawurlencode((string)$certificate['validation_hash'])?>">Validar autenticidade</a></p><p class="muted">O certificado pode ser impresso ou salvo como PDF diretamente pela página do documento.</p><?php else:?><p class="muted">Seu documento final ainda não foi emitido. Consulte a situação acadêmica acima para verificar se existe alguma pendência.</p><?php endif;?></div>
-</main></body></html>
+    <!-- Cards de Métricas EAD -->
+    <section class="stats-card-grid">
+      <?php if($isOnline):?>
+        <div class="stat-box">
+          <span class="val"><?=$done?> / <?=$total?></span>
+          <span class="lbl">Aulas Concluídas</span>
+        </div>
+        <div class="stat-box">
+          <span class="val"><?=fmtMinutes($watched)?></span>
+          <span class="lbl">Tempo de Estudo Assistido</span>
+        </div>
+      <?php endif;?>
+
+      <?php if($isPresential):?>
+        <div class="stat-box">
+          <span class="val"><?=$presentSessions?> / <?=$totalSessions?></span>
+          <span class="lbl">Encontros com Presença</span>
+        </div>
+        <div class="stat-box">
+          <span class="val"><?=fmtPlannedMinutes($attendedMinutes)?></span>
+          <span class="lbl">Carga Horária Presencial</span>
+        </div>
+      <?php endif;?>
+
+      <div class="stat-box">
+        <span class="val"><?=ph($certificate['status'] ?? 'Em curso')?></span>
+        <span class="lbl">Status da Certificação</span>
+      </div>
+    </section>
+
+    <!-- Trilha de Aulas do Curso -->
+    <section class="curriculum-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2>Trilha de Aprendizado</h2>
+        <span class="pill"><?=count($lessons)?> Conteúdos Totais</span>
+      </div>
+      <p style="font-size:0.9rem;color:var(--text-secondary);">
+        Acesse os módulos pedagógicos estruturados para o seu aprendizado.
+      </p>
+
+      <?php foreach($modules as $module):?>
+        <div class="module-group">
+          <div class="module-header">
+            Módulo <?=$module['position']?>: <?=ph($module['title'])?>
+          </div>
+          <div>
+            <?php foreach($module['lessons'] as $lesson): $pct=(float)$lesson['percent_complete'];?>
+              <div class="lesson-item">
+                <div class="lesson-info">
+                  <span class="lesson-title">Aula <?=$lesson['lesson_position']?> — <?=ph($lesson['lesson_title'])?></span>
+                  <span style="font-size:0.8rem;color:var(--text-muted);"><?=ph($lesson['objective'])?></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <?php if($isOnline):?>
+                    <span class="pill <?=$pct>=100?'ok':($pct>0?'warn':'')?>">
+                      <?=$pct>=100?'Concluída':($pct>0?round($pct).'% assistida':'Não iniciada')?>
+                    </span>
+                    <a href="aula.php?id=<?=$lesson['lesson_id']?>" class="btn <?=$pct>=100?'btn-secondary':''?>">
+                      <?=$pct>0 && $pct<100 ? 'Continuar ▶' : 'Assistir Aula'?>
+                    </a>
+                  <?php endif;?>
+                </div>
+              </div>
+            <?php endforeach;?>
+          </div>
+        </div>
+      <?php endforeach;?>
+    </section>
+
+    <!-- Certificado -->
+    <?php if($certificate && $certificate['status']==='emitido'):?>
+      <section class="card" style="border-left:4px solid var(--success);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+        <div>
+          <h2 style="color:var(--success);margin-bottom:4px;">🎉 Certificado Disponível!</h2>
+          <p style="margin:0;">Seu certificado oficial de conclusão foi emitido com sucesso.</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <a class="btn btn-success" href="certificado.php?hash=<?=rawurlencode((string)$certificate['validation_hash'])?>" target="_blank">
+            Visualizar / Imprimir Certificado
+          </a>
+          <a class="btn btn-secondary" href="validar_certificado.php?hash=<?=rawurlencode((string)$certificate['validation_hash'])?>" target="_blank">
+            Validar Autenticidade
+          </a>
+        </div>
+      </section>
+    <?php endif;?>
+  </main>
+</body>
+</html>
