@@ -274,7 +274,9 @@ $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? sub
 </head>
 <body>
   <header class="student-navbar">
-    <div class="brand-logo">🎓 Vitrine IA Pro <span style="font-size:0.85rem;color:var(--text-muted);font-weight:400;">| Portal EAD</span></div>
+    <a href="aluno.php" style="display:flex;align-items:center;">
+      <img src="assets/logo.svg" alt="Cursos IA MVP" style="height:42px;">
+    </a>
     <div style="display:flex;align-items:center;gap:16px;">
       <span class="pill ok">● Matrícula Ativa</span>
       <a href="aluno_login.php?logout=1" class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem;">Sair</a>

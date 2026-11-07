@@ -157,8 +157,8 @@ $metrics=[
   <div class="app-shell">
     <!-- Sidebar Administrativa -->
     <aside class="sidebar">
-      <div class="brand">
-        🎓 Cursos IA MVP
+      <div class="brand" style="padding-bottom:14px;">
+        <img src="assets/logo.svg" alt="Cursos IA MVP" style="height:42px;display:block;margin-bottom:6px;">
         <small>Gestão Acadêmica & Estúdio IA</small>
       </div>
       <nav>

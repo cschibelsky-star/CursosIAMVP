@@ -175,7 +175,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <body>
   <div class="auth-card">
     <div class="auth-header">
-      <div class="auth-brand">🎓 Cursos IA MVP</div>
+      <div style="margin-bottom:16px;display:flex;justify-content:center;">
+        <img src="assets/logo.svg" alt="Cursos IA MVP" style="height:50px;">
+      </div>
       <h1 class="auth-title">Ambiente Virtual do Aluno</h1>
       <p class="auth-subtitle">Insira seu código individual para acessar suas aulas e certificações.</p>
     </div>

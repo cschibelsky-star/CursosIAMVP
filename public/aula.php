@@ -210,8 +210,12 @@ $isCompleted = (float)$lesson['percent_complete'] >= 100;
 <body>
   <header class="player-header">
     <div style="display:flex;align-items:center;gap:16px;">
+      <a href="aluno.php" style="display:flex;align-items:center;">
+        <img src="assets/logo.svg" alt="Cursos IA MVP" style="height:36px;">
+      </a>
+      <span style="color:var(--border-subtle);">|</span>
       <a href="aluno.php" class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem;">
-        ← Voltar ao Painel
+        ← Painel de Aulas
       </a>
       <strong style="color:#fff;font-size:0.95rem;"><?=ah2($lesson['course_title'])?></strong>
     </div>
