@@ -82,7 +82,35 @@ function portalCourseLessons(PDO $pdo, int $enrollmentId, int $courseId): array
         WHERE m.course_id=?
         ORDER BY m.position,l.position");
     $stmt->execute([$enrollmentId,$courseId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rawLessons = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Busca a média geral de notas do aluno nas avaliações deste curso
+    $stGrade = $pdo->prepare("SELECT AVG(ar.score) FROM assessment_results ar INNER JOIN assessments a ON a.id=ar.assessment_id WHERE ar.enrollment_id=? AND a.course_id=? AND ar.status='avaliado'");
+    $stGrade->execute([$enrollmentId, $courseId]);
+    $avgGrade = $stGrade->fetchColumn();
+    $gradeScore = $avgGrade !== null && $avgGrade !== false ? (float)$avgGrade : null;
+
+    // Aplicação da Regra Sequencial: Vídeo 100% Concluído + Teste Aprovado (>= 70%)
+    $lessons = [];
+    $previousPassed = true; // Primeira aula sempre liberada
+
+    foreach($rawLessons as $idx => $lesson) {
+        $videoDone = (float)$lesson['percent_complete'] >= 100;
+        $testPassed = ($gradeScore === null || $gradeScore >= 70.0);
+        $isLocked = !$previousPassed;
+
+        $lesson['is_locked'] = $isLocked;
+        $lesson['video_done'] = $videoDone;
+        $lesson['test_passed'] = $testPassed;
+        $lesson['can_access'] = !$isLocked;
+
+        $lessons[] = $lesson;
+
+        // Para liberar a próxima aula, a aula atual precisa estar 100% assistida e o teste aprovado (>= 70%)
+        $previousPassed = ($previousPassed && $videoDone && $testPassed);
+    }
+
+    return $lessons;
 }
 
 function portalAttendance(PDO $pdo, int $enrollmentId, ?int $cohortId): array

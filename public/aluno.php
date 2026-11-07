@@ -282,6 +282,15 @@ $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? sub
   </header>
 
   <main class="student-container">
+    <?php if(isset($_GET['locked'])):?>
+      <div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;padding:16px 20px;border-radius:var(--radius-md);display:flex;align-items:center;gap:12px;font-size:0.9rem;">
+        <span style="font-size:1.4rem;">🔒</span>
+        <div>
+          <strong style="color:#fff;">Aula Bloqueada:</strong> Esta aula só será liberada após você concluir 100% do vídeo e obter aprovação com pelo menos 70% de acerto no teste da aula anterior.
+        </div>
+      </div>
+    <?php endif;?>
+
     <!-- Topo: Perfil do Aluno + Curso em Destaque -->
     <section class="student-header-grid">
       <!-- Card de Perfil do Aluno -->
@@ -419,24 +428,42 @@ $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? sub
               <?php foreach($module['lessons'] as $lesson):
                 $pct = (float)$lesson['percent_complete'];
                 $isCompleted = $pct >= 100;
+                $isLocked = !empty($lesson['is_locked']);
               ?>
-                <div class="lesson-item">
+                <div class="lesson-item <?=$isLocked ? 'locked-item' : ''?>" style="<?=$isLocked ? 'opacity:0.65;background:rgba(0,0,0,0.15);' : ''?>">
                   <div class="lesson-info">
                     <div style="display:flex;align-items:center;gap:10px;">
-                      <span style="width:24px;height:24px;border-radius:50%;background:<?=$isCompleted ? 'var(--success-bg)' : 'var(--bg-hover)'?>;color:<?=$isCompleted ? 'var(--success)' : 'var(--text-secondary)'?>;display:grid;place-items:center;font-size:0.75rem;font-weight:700;border:1px solid <?=$isCompleted ? 'rgba(16,185,129,0.3)' : 'var(--border-light)'?>;">
-                        <?=$isCompleted ? '✔' : $lesson['lesson_position']?>
+                      <span style="width:24px;height:24px;border-radius:50%;background:<?=$isCompleted ? 'var(--success-bg)' : ($isLocked ? 'rgba(239,68,68,0.15)' : 'var(--bg-hover)')?>;color:<?=$isCompleted ? 'var(--success)' : ($isLocked ? '#f87171' : 'var(--text-secondary)')?>;display:grid;place-items:center;font-size:0.75rem;font-weight:700;border:1px solid <?=$isCompleted ? 'rgba(16,185,129,0.3)' : ($isLocked ? 'rgba(239,68,68,0.3)' : 'var(--border-light)')?>;">
+                        <?=$isCompleted ? '✔' : ($isLocked ? '🔒' : $lesson['lesson_position'])?>
                       </span>
-                      <span class="lesson-title"><?=ph($lesson['lesson_title'])?></span>
+                      <span class="lesson-title" style="<?=$isLocked ? 'color:var(--text-muted);' : ''?>">
+                        <?=ph($lesson['lesson_title'])?>
+                      </span>
                     </div>
-                    <span style="font-size:0.8rem;color:var(--text-muted);margin-left:34px;"><?=ph($lesson['objective'])?></span>
+                    <span style="font-size:0.8rem;color:var(--text-muted);margin-left:34px;">
+                      <?php if($isLocked):?>
+                        🔒 Requer 100% de vídeo e nota mínima de 70% no teste da aula anterior.
+                      <?php else:?>
+                        <?=ph($lesson['objective'])?>
+                      <?php endif;?>
+                    </span>
                   </div>
                   <div style="display:flex;align-items:center;gap:12px;">
-                    <span class="pill <?=$isCompleted ? 'ok' : ($pct > 0 ? 'warn' : '')?>">
-                      <?=$isCompleted ? 'Concluída' : ($pct > 0 ? round($pct).'% assistida' : 'Disponível')?>
-                    </span>
-                    <a href="aula.php?id=<?=$lesson['lesson_id']?>" class="btn <?=$isCompleted ? 'btn-secondary' : ''?>" style="padding:8px 16px;font-size:0.8rem;">
-                      <?=$isCompleted ? 'Rever Aula' : ($pct > 0 ? 'Continuar' : 'Acessar')?>
-                    </a>
+                    <?php if($isLocked):?>
+                      <span class="pill" style="background:rgba(239,68,68,0.1);color:#fca5a5;border-color:rgba(239,68,68,0.3);font-size:0.75rem;">
+                        🔒 Bloqueada
+                      </span>
+                      <button disabled class="btn btn-secondary" style="padding:8px 16px;font-size:0.8rem;opacity:0.4;cursor:not-allowed;">
+                        Bloqueada
+                      </button>
+                    <?php else:?>
+                      <span class="pill <?=$isCompleted ? 'ok' : ($pct > 0 ? 'warn' : '')?>">
+                        <?=$isCompleted ? 'Concluída' : ($pct > 0 ? round($pct).'% assistida' : 'Disponível')?>
+                      </span>
+                      <a href="aula.php?id=<?=$lesson['lesson_id']?>" class="btn <?=$isCompleted ? 'btn-secondary' : ''?>" style="padding:8px 16px;font-size:0.8rem;">
+                        <?=$isCompleted ? 'Rever Aula' : ($pct > 0 ? 'Continuar' : 'Acessar')?>
+                      </a>
+                    <?php endif;?>
                   </div>
                 </div>
               <?php endforeach;?>

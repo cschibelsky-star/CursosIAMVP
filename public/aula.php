@@ -43,6 +43,20 @@ FROM enrollments e INNER JOIN courses c ON c.id=e.course_id INNER JOIN modules m
 $stmt->execute([$enrollmentId,$lessonId]);$lesson=$stmt->fetch();
 if(!$lesson){http_response_code(404);echo 'Aula não encontrada para esta matrícula.';exit;}
 
+// Validação da Regra de Liberação Sequencial
+$courseLessons = portalCourseLessons($pdo, $enrollmentId, (int)$lesson['course_id']);
+$currentAccess = null;
+foreach($courseLessons as $cl){
+    if((int)$cl['lesson_id'] === $lessonId){
+        $currentAccess = $cl;
+        break;
+    }
+}
+if($currentAccess && !empty($currentAccess['is_locked'])){
+    header('Location: aluno.php?locked=1');
+    exit;
+}
+
 $pdo->prepare("INSERT INTO lesson_progress(enrollment_id,lesson_id,status,started_at,last_seen_at) VALUES(?,?,'em_andamento',NOW(),NOW()) ON DUPLICATE KEY UPDATE status=CASE WHEN status='nao_iniciada' THEN 'em_andamento' ELSE status END,started_at=COALESCE(started_at,NOW()),last_seen_at=NOW()")->execute([$enrollmentId,$lessonId]);
 $pdo->prepare("UPDATE enrollments SET status=CASE WHEN status='matriculado' THEN 'em_andamento' ELSE status END,started_at=COALESCE(started_at,NOW()),last_seen_at=NOW() WHERE id=?")->execute([$enrollmentId]);
 
@@ -303,15 +317,25 @@ $isCompleted = (float)$lesson['percent_complete'] >= 100;
                 <?php foreach($mod['lessons'] as $les):
                   $isCurrent = (int)$les['lesson_id'] === $lessonId;
                   $isDone = (float)$les['percent_complete'] >= 100;
+                  $lesLocked = !empty($les['is_locked']);
                 ?>
-                  <a href="aula.php?id=<?=$les['lesson_id']?>" class="curriculum-lesson <?=$isCurrent ? 'active' : ''?>">
-                    <span class="lesson-title">
-                      <?=$isDone ? '✔' : '▶'?> Aula <?=$les['lesson_position']?>: <?=ah2($les['lesson_title'])?>
-                    </span>
-                    <?php if($isDone):?>
-                      <span class="pill ok" style="font-size:0.65rem;">Concluído</span>
-                    <?php endif;?>
-                  </a>
+                  <?php if($lesLocked):?>
+                    <div class="curriculum-lesson" style="opacity:0.45;cursor:not-allowed;">
+                      <span class="lesson-title" style="color:var(--text-muted);">
+                        🔒 Aula <?=$les['lesson_position']?>: <?=ah2($les['lesson_title'])?>
+                      </span>
+                      <span class="pill" style="font-size:0.6rem;background:rgba(239,68,68,0.1);color:#fca5a5;">Bloqueada</span>
+                    </div>
+                  <?php else:?>
+                    <a href="aula.php?id=<?=$les['lesson_id']?>" class="curriculum-lesson <?=$isCurrent ? 'active' : ''?>">
+                      <span class="lesson-title">
+                        <?=$isDone ? '✔' : '▶'?> Aula <?=$les['lesson_position']?>: <?=ah2($les['lesson_title'])?>
+                      </span>
+                      <?php if($isDone):?>
+                        <span class="pill ok" style="font-size:0.65rem;">Concluído</span>
+                      <?php endif;?>
+                    </a>
+                  <?php endif;?>
                 <?php endforeach;?>
               </div>
             </div>
