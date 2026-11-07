@@ -48,6 +48,7 @@ function ensureCoreCourseModel(PDO $pdo): void
         UNIQUE KEY uq_module_position(course_id,position),
         CONSTRAINT fk_modules_course FOREIGN KEY(course_id) REFERENCES courses(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    try { $pdo->exec("ALTER TABLE modules ADD COLUMN cover_image VARCHAR(500) NULL AFTER objective"); } catch (Throwable $e) {}
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS lessons (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

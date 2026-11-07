@@ -31,6 +31,22 @@ function fmtPlannedMinutes(int $minutes): string
     return $hours.'h'.($rest?' '.$rest.'min':'');
 }
 
+function getModuleCoverImage(string $title, ?string $customCover = null): string
+{
+    if(!empty($customCover)) return $customCover;
+    $t = mb_strtolower($title, 'UTF-8');
+    if(str_contains($t, 'política') || str_contains($t, 'inclusiv') || str_contains($t, 'pública') || str_contains($t, 'social')){
+        return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80'; // Planejamento / Cidades
+    } elseif(str_contains($t, 'ia') || str_contains($t, 'inteligência') || str_contains($t, 'dados') || str_contains($t, 'prompt')){
+        return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'; // IA / Tecnologia
+    } elseif(str_contains($t, 'fundamento') || str_contains($t, 'introdução') || str_contains($t, 'conceito')){
+        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'; // Conceitos / Fundamentos
+    } elseif(str_contains($t, 'automação') || str_contains($t, 'workflow') || str_contains($t, 'prática')){
+        return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'; // Chips / Automação
+    }
+    return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'; // Genérico Educação Digital
+}
+
 $pdo=alunoDb();
 ensureAcademicModel($pdo);
 ensureStudentPortal($pdo);
@@ -366,25 +382,53 @@ $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? sub
         </div>
         <p style="font-size:0.875rem;color:var(--text-secondary);">Acompanhe e acesse individualmente cada aula da formação.</p>
 
-        <?php foreach($modules as $module):?>
-          <div class="module-group">
-            <div class="module-header">
-              📁 Módulo <?=$module['position']?>: <?=ph($module['title'])?>
+        <?php foreach($modules as $module):
+          $modCover = getModuleCoverImage($module['title'], $module['cover_image'] ?? null);
+          $modTotal = count($module['lessons']);
+          $modDone = count(array_filter($module['lessons'], fn($l) => (float)$l['percent_complete'] >= 100));
+          $modPct = $modTotal > 0 ? round(($modDone / $modTotal) * 100) : 0;
+        ?>
+          <div class="module-group" style="margin-top:24px;border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-md);border:1px solid var(--border-light);background:var(--bg-secondary);">
+            <!-- Banner com Imagem de Capa do Módulo -->
+            <div style="position:relative;height:140px;background:url('<?=ph($modCover)?>') center/cover no-repeat;display:flex;align-items:flex-end;padding:20px;overflow:hidden;">
+              <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(11, 15, 25, 0.95) 10%, rgba(11, 15, 25, 0.4) 60%, rgba(0,0,0,0.2) 100%);"></div>
+              <div style="position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;width:100%;flex-wrap:wrap;gap:12px;">
+                <div>
+                  <div style="margin-bottom:6px;">
+                    <span class="pill" style="background:rgba(0,0,0,0.6);color:#fff;border-color:rgba(255,255,255,0.2);">
+                      MÓDULO <?=$module['position']?>
+                    </span>
+                    <?php if($modPct >= 100):?>
+                      <span class="pill ok">✓ 100% Concluído</span>
+                    <?php elseif($modPct > 0):?>
+                      <span class="pill warn"><?=$modPct?>% em andamento</span>
+                    <?php endif;?>
+                  </div>
+                  <h3 style="font-size:1.25rem;color:#fff;margin:0;text-shadow:0 2px 4px rgba(0,0,0,0.8);">
+                    <?=ph($module['title'])?>
+                  </h3>
+                </div>
+                <div style="text-align:right;background:rgba(11,15,25,0.7);padding:6px 12px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.1);">
+                  <span style="font-size:0.8rem;color:var(--text-secondary);"><?=$modDone?> de <?=$modTotal?> aulas concluídas</span>
+                </div>
+              </div>
             </div>
-            <div>
+
+            <!-- Lista de Aulas do Módulo -->
+            <div style="background:var(--bg-surface);">
               <?php foreach($module['lessons'] as $lesson):
                 $pct = (float)$lesson['percent_complete'];
                 $isCompleted = $pct >= 100;
               ?>
                 <div class="lesson-item">
                   <div class="lesson-info">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                      <span style="color:<?=$isCompleted ? 'var(--success)' : 'var(--brand-primary)'?>;font-size:1.1rem;">
-                        <?=$isCompleted ? '✔' : '▶'?>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="width:24px;height:24px;border-radius:50%;background:<?=$isCompleted ? 'var(--success-bg)' : 'var(--bg-hover)'?>;color:<?=$isCompleted ? 'var(--success)' : 'var(--text-secondary)'?>;display:grid;place-items:center;font-size:0.75rem;font-weight:700;border:1px solid <?=$isCompleted ? 'rgba(16,185,129,0.3)' : 'var(--border-light)'?>;">
+                        <?=$isCompleted ? '✔' : $lesson['lesson_position']?>
                       </span>
-                      <span class="lesson-title">Aula <?=$lesson['lesson_position']?>: <?=ph($lesson['lesson_title'])?></span>
+                      <span class="lesson-title"><?=ph($lesson['lesson_title'])?></span>
                     </div>
-                    <span style="font-size:0.8rem;color:var(--text-muted);margin-left:26px;"><?=ph($lesson['objective'])?></span>
+                    <span style="font-size:0.8rem;color:var(--text-muted);margin-left:34px;"><?=ph($lesson['objective'])?></span>
                   </div>
                   <div style="display:flex;align-items:center;gap:12px;">
                     <span class="pill <?=$isCompleted ? 'ok' : ($pct > 0 ? 'warn' : '')?>">

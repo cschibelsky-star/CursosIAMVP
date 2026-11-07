@@ -15,6 +15,22 @@ function aulaDb(): PDO
 }
 function ah2(?string $v): string { return htmlspecialchars($v ?? '',ENT_QUOTES,'UTF-8'); }
 
+function getModuleCoverImage(string $title, ?string $customCover = null): string
+{
+    if(!empty($customCover)) return $customCover;
+    $t = mb_strtolower($title, 'UTF-8');
+    if(str_contains($t, 'política') || str_contains($t, 'inclusiv') || str_contains($t, 'pública') || str_contains($t, 'social')){
+        return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=400&q=80';
+    } elseif(str_contains($t, 'ia') || str_contains($t, 'inteligência') || str_contains($t, 'dados') || str_contains($t, 'prompt')){
+        return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80';
+    } elseif(str_contains($t, 'fundamento') || str_contains($t, 'introdução') || str_contains($t, 'conceito')){
+        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80';
+    } elseif(str_contains($t, 'automação') || str_contains($t, 'workflow') || str_contains($t, 'prática')){
+        return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80';
+    }
+    return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=400&q=80';
+}
+
 $pdo=aulaDb();ensureAcademicModel($pdo);ensureStudentPortal($pdo);
 $enrollmentId=(int)($_SESSION['student_enrollment_id']??0);
 $csrf=(string)($_SESSION['student_csrf']??'');
@@ -275,10 +291,13 @@ $isCompleted = (float)$lesson['percent_complete'] >= 100;
           </p>
         </div>
         <div class="curriculum-body">
-          <?php foreach($modules as $mod):?>
+          <?php foreach($modules as $mod):
+            $mCover = getModuleCoverImage($mod['title'], $mod['cover_image'] ?? null);
+          ?>
             <div class="curriculum-module">
-              <div class="curriculum-module-title">
-                📁 Módulo <?=$mod['position']?>: <?=ah2($mod['title'])?>
+              <div class="curriculum-module-title" style="display:flex;align-items:center;gap:10px;padding:10px 14px;">
+                <div style="width:32px;height:32px;border-radius:6px;background:url('<?=ph($mCover)?>') center/cover no-repeat;flex-shrink:0;border:1px solid rgba(255,255,255,0.1);"></div>
+                <span style="font-size:0.85rem;line-height:1.3;">Módulo <?=$mod['position']?>: <?=ah2($mod['title'])?></span>
               </div>
               <div>
                 <?php foreach($mod['lessons'] as $les):
