@@ -74,7 +74,7 @@ function portalAuthenticateByCode(PDO $pdo, string $code): ?array
 
 function portalCourseLessons(PDO $pdo, int $enrollmentId, int $courseId): array
 {
-    $stmt = $pdo->prepare("SELECT m.id AS module_id,m.position AS module_position,m.title AS module_title,l.id AS lesson_id,l.position AS lesson_position,l.title AS lesson_title,l.objective,l.video_url,l.estimated_minutes,
+    $stmt = $pdo->prepare("SELECT m.id AS module_id,m.position AS module_position,m.title AS module_title,m.cover_image,m.cover_attribution,l.id AS lesson_id,l.position AS lesson_position,l.title AS lesson_title,l.objective,l.video_url,l.estimated_minutes,
         COALESCE(lp.status,'nao_iniciada') AS progress_status,COALESCE(lp.watched_seconds,0) AS watched_seconds,COALESCE(lp.total_seconds,0) AS total_seconds,COALESCE(lp.percent_complete,0) AS percent_complete,COALESCE(lp.last_position_seconds,0) AS last_position_seconds
         FROM modules m
         INNER JOIN lessons l ON l.module_id=m.id

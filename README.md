@@ -1,6 +1,6 @@
-# 🎓 Cursos IA MVP — Plataforma EAD & Estúdio de Criação com IA
+# 🎓 Cursos IA MVP — Plataforma EAD & Portal do Aluno
 
-Plataforma completa de ensino a distância (EAD) com geração inteligente de cursos, roteiros, materiais didáticos, player moderno de aulas e gestão acadêmica/financeira 360°.
+Ambiente virtual de aprendizagem (LMS/EAD) moderno e imersivo, com foco na experiência do aluno, player de vídeo estilo cinema, trilha interativa, liberação sequencial de aulas condicional (100% vídeo + ≥ 70% teste), controle acadêmico 360° e certificação automatizada.
 
 ---
 

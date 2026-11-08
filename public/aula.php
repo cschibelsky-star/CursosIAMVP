@@ -15,17 +15,15 @@ function aulaDb(): PDO
 }
 function ah2(?string $v): string { return htmlspecialchars($v ?? '',ENT_QUOTES,'UTF-8'); }
 
-function getModuleCoverImage(string $title, ?string $customCover = null): string
+function getModuleCoverImage(string $title, ?string $customCover = null, int $modulePosition = 1): string
 {
-    if(!empty($customCover)) return $customCover;
+    if (!empty($customCover)) return $customCover;
     $t = mb_strtolower($title, 'UTF-8');
-    if(str_contains($t, 'política') || str_contains($t, 'inclusiv') || str_contains($t, 'pública') || str_contains($t, 'social')){
-        return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=400&q=80';
-    } elseif(str_contains($t, 'ia') || str_contains($t, 'inteligência') || str_contains($t, 'dados') || str_contains($t, 'prompt')){
+    if (str_contains($t, 'política') || str_contains($t, 'inclusiv') || str_contains($t, 'pública') || str_contains($t, 'cidade') || str_contains($t, 'social') || str_contains($t, 'acessib')) {
+        return 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/CDH_-_Mobilidade_Urbana_%2816955045326%29.jpg/640px-CDH_-_Mobilidade_Urbana_%2816955045326%29.jpg';
+    } elseif (str_contains($t, 'ia') || str_contains($t, 'inteligência') || str_contains($t, 'llm') || str_contains($t, 'prompt') || str_contains($t, 'neural')) {
         return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80';
-    } elseif(str_contains($t, 'fundamento') || str_contains($t, 'introdução') || str_contains($t, 'conceito')){
-        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80';
-    } elseif(str_contains($t, 'automação') || str_contains($t, 'workflow') || str_contains($t, 'prática')){
+    } elseif (str_contains($t, 'automação') || str_contains($t, 'workflow') || str_contains($t, 'código') || str_contains($t, 'prática')) {
         return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80';
     }
     return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=400&q=80';
@@ -69,7 +67,7 @@ $foundCurrent = false;
 
 foreach($allLessons as $idx => $lItem){
     $mId=(int)$lItem['module_id'];
-    if(!isset($modules[$mId])) $modules[$mId]=['title'=>$lItem['module_title'],'position'=>$lItem['module_position'],'lessons'=>[]];
+    if(!isset($modules[$mId])) $modules[$mId]=['title'=>$lItem['module_title'],'position'=>$lItem['module_position'],'cover_image'=>$lItem['cover_image']??null,'cover_attribution'=>$lItem['cover_attribution']??null,'lessons'=>[]];
     $modules[$mId]['lessons'][]=$lItem;
 
     if((int)$lItem['lesson_id'] === $lessonId){
@@ -310,7 +308,7 @@ $isCompleted = (float)$lesson['percent_complete'] >= 100;
         </div>
         <div class="curriculum-body">
           <?php foreach($modules as $mod):
-            $mCover = getModuleCoverImage($mod['title'], $mod['cover_image'] ?? null);
+            $mCover = getModuleCoverImage($mod['title'], $mod['cover_image'] ?? null, (int)$mod['position']);
           ?>
             <div class="curriculum-module">
               <div class="curriculum-module-title" style="display:flex;align-items:center;gap:10px;padding:10px 14px;">

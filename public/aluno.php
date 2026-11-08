@@ -31,20 +31,25 @@ function fmtPlannedMinutes(int $minutes): string
     return $hours.'h'.($rest?' '.$rest.'min':'');
 }
 
-function getModuleCoverImage(string $title, ?string $customCover = null): string
+function getModuleCoverImage(string $title, ?string $customCover = null, int $modulePosition = 1): string
 {
-    if(!empty($customCover)) return $customCover;
+    // 1. Se o módulo tiver imagem cadastrada no banco, usa ela diretamente
+    if (!empty($customCover)) return $customCover;
+
+    // 2. Fotos temáticas reais de referência de acordo com a matéria do módulo
     $t = mb_strtolower($title, 'UTF-8');
-    if(str_contains($t, 'política') || str_contains($t, 'inclusiv') || str_contains($t, 'pública') || str_contains($t, 'social')){
-        return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80'; // Planejamento / Cidades
-    } elseif(str_contains($t, 'ia') || str_contains($t, 'inteligência') || str_contains($t, 'dados') || str_contains($t, 'prompt')){
-        return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'; // IA / Tecnologia
-    } elseif(str_contains($t, 'fundamento') || str_contains($t, 'introdução') || str_contains($t, 'conceito')){
-        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'; // Conceitos / Fundamentos
-    } elseif(str_contains($t, 'automação') || str_contains($t, 'workflow') || str_contains($t, 'prática')){
-        return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'; // Chips / Automação
+    if (str_contains($t, 'política') || str_contains($t, 'inclusiv') || str_contains($t, 'pública') || str_contains($t, 'cidade') || str_contains($t, 'social') || str_contains($t, 'acessib')) {
+        // Referência: Mobilidade urbana e inclusão social
+        return 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/CDH_-_Mobilidade_Urbana_%2816955045326%29.jpg/1280px-CDH_-_Mobilidade_Urbana_%2816955045326%29.jpg';
+    } elseif (str_contains($t, 'ia') || str_contains($t, 'inteligência') || str_contains($t, 'llm') || str_contains($t, 'prompt') || str_contains($t, 'neural') || str_contains($t, 'modelo')) {
+        // Referência: Inteligência Artificial e Redes Neurais
+        return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=850&q=80';
+    } elseif (str_contains($t, 'automação') || str_contains($t, 'workflow') || str_contains($t, 'código') || str_contains($t, 'prática') || str_contains($t, 'api')) {
+        // Referência: Engenharia de Software e Automação de Processos
+        return 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=850&q=80';
     }
-    return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'; // Genérico Educação Digital
+    // Referência padrão: Educação e Formação Profissional
+    return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=850&q=80';
 }
 
 $pdo=alunoDb();
@@ -96,7 +101,7 @@ $modules=[];
 $firstPendingLessonId = null;
 foreach($lessons as $lesson){
     $key=(int)$lesson['module_id'];
-    if(!isset($modules[$key]))$modules[$key]=['position'=>$lesson['module_position'],'title'=>$lesson['module_title'],'lessons'=>[]];
+    if(!isset($modules[$key]))$modules[$key]=['position'=>$lesson['module_position'],'title'=>$lesson['module_title'],'cover_image'=>$lesson['cover_image']??null,'cover_attribution'=>$lesson['cover_attribution']??null,'lessons'=>[]];
     $modules[$key]['lessons'][]=$lesson;
     if($firstPendingLessonId === null && (float)$lesson['percent_complete'] < 100){
         $firstPendingLessonId = (int)$lesson['lesson_id'];
@@ -394,14 +399,14 @@ $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? sub
         <p style="font-size:0.875rem;color:var(--text-secondary);">Acompanhe e acesse individualmente cada aula da formação.</p>
 
         <?php foreach($modules as $module):
-          $modCover = getModuleCoverImage($module['title'], $module['cover_image'] ?? null);
+          $modCover = getModuleCoverImage($module['title'], $module['cover_image'] ?? null, (int)$module['position']);
           $modTotal = count($module['lessons']);
           $modDone = count(array_filter($module['lessons'], fn($l) => (float)$l['percent_complete'] >= 100));
           $modPct = $modTotal > 0 ? round(($modDone / $modTotal) * 100) : 0;
         ?>
           <div class="module-group" style="margin-top:24px;border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-md);border:1px solid var(--border-light);background:var(--bg-secondary);">
             <!-- Banner com Imagem de Capa do Módulo -->
-            <div style="position:relative;height:140px;background:url('<?=ph($modCover)?>') center/cover no-repeat;display:flex;align-items:flex-end;padding:20px;overflow:hidden;">
+            <div style="position:relative;height:150px;background:url('<?=$modCover?>') center/cover no-repeat;display:flex;align-items:flex-end;padding:20px;overflow:hidden;">
               <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(11, 15, 25, 0.95) 10%, rgba(11, 15, 25, 0.4) 60%, rgba(0,0,0,0.2) 100%);"></div>
               <div style="position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;width:100%;flex-wrap:wrap;gap:12px;">
                 <div>
